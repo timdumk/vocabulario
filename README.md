@@ -4,7 +4,7 @@ Persönliche PWA zum Spanisch-Vokabeltraining (Multiple Choice). Läuft im Brows
 per „Zum Home-Bildschirm hinzufügen" wie eine iOS-App (Vollbild, Icon, offline).
 
 ## Features
-- Multiple Choice, Richtung umschaltbar (🇪🇸→🇬🇧 / 🇬🇧→🇪🇸)
+- Multiple Choice, Richtung umschaltbar (🇪🇸→🇩🇪 / 🇩🇪→🇪🇸)
 - Themen-Filter (Kategorien)
 - Streak + Score, lokal gespeichert
 - Offline nutzbar (Service Worker)

@@ -1,7 +1,7 @@
 "use strict";
 
 // --- State ---
-let dir = localStorage.getItem("dir") || "es-en"; // "es-en" oder "en-es"
+let dir = localStorage.getItem("dir") || "es-de"; // "es-de" oder "de-es"
 let cat = localStorage.getItem("cat") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
 let current = null;
@@ -22,8 +22,8 @@ const categories = ["Alle", ...new Set(VOCAB.map((v) => v.cat))];
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
 const pool = () => (cat === "Alle" ? VOCAB : VOCAB.filter((v) => v.cat === cat));
 
-function ask(word) { return dir === "es-en" ? word.es : word.en; }
-function answer(word) { return dir === "es-en" ? word.en : word.es; }
+function ask(word) { return dir === "es-de" ? word.es : word.de; }
+function answer(word) { return dir === "es-de" ? word.de : word.es; }
 
 function saveStats() { localStorage.setItem("stats", JSON.stringify(stats)); }
 
@@ -47,7 +47,7 @@ function newQuestion() {
   const wrong = shuffle(distractPool).slice(0, 3);
   const choices = shuffle([current, ...wrong]);
 
-  promptLabel.textContent = dir === "es-en" ? "Was bedeutet…" : "Wie heißt auf Spanisch…";
+  promptLabel.textContent = dir === "es-de" ? "Was bedeutet…" : "Wie heißt auf Spanisch…";
   wordEl.textContent = ask(current);
 
   choices.forEach((choice) => {
@@ -90,9 +90,9 @@ function choose(btn, choice) {
 
 // --- Controls ---
 dirToggle.addEventListener("click", () => {
-  dir = dir === "es-en" ? "en-es" : "es-en";
+  dir = dir === "es-de" ? "de-es" : "es-de";
   localStorage.setItem("dir", dir);
-  dirToggle.textContent = dir === "es-en" ? "🇪🇸 → 🇬🇧" : "🇬🇧 → 🇪🇸";
+  dirToggle.textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
   newQuestion();
 });
 
@@ -113,7 +113,7 @@ $("resetBtn").addEventListener("click", () => {
 });
 
 // --- Init ---
-dirToggle.textContent = dir === "es-en" ? "🇪🇸 → 🇬🇧" : "🇬🇧 → 🇪🇸";
+dirToggle.textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
 catToggle.textContent = cat === "Alle" ? "Alle Themen" : cat;
 renderStats();
 newQuestion();
