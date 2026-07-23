@@ -28,8 +28,13 @@ python3 -m http.server 8123
 ```
 → http://localhost:8123
 
+## Modi
+- **Vokabeln:** Wort ↔ Bedeutung, 🇪🇸↔🇩🇪, Themenfilter.
+- **Verben:** Konjugation abfragen (Person · Zeitform → Form). Filter: Zeit (Alle/Presente/Indefinido/Perfecto) + Typ (Alle/Regelmäßig/Unregelmäßig). Daten in `verbs.js`, Perfecto automatisch aus `haber + Partizip`. Quelle: [[uni/spanisch/Verben-Konjugation]].
+
 ## Roadmap
-- [ ] Kategorien schrittweise ausbauen (Körperteile, Essen, …)
-- [ ] Konjugations-Modus: Verben × Person × 3 Zeitformen (Presente / Indefinido / Perfecto), regelmäßig + unregelmäßig. Quellen: [[uni/spanisch/Verben-Konjugation]], [[uni/spanisch/Grammatik/Vergangenheit-Perfecto-vs-Indefinido]]
+- [x] Konjugations-Modus (Starter: 7 Verben — hablar/comer/vivir + ser/ir/tener/hacer)
+- [ ] Weitere Verben aus [[uni/spanisch/Verben-Konjugation]] ergänzen (20 total), inkl. Condicional-Zeitform
+- [ ] Vokabel-Kategorien ausbauen (Körperteile, Essen, …)
 - [ ] Hosting entscheiden (lokal vs. GitHub Pages) → echte iPhone-URL
 - [ ] Ggf. GitHub-Remote (Repo aktuell nur lokal)

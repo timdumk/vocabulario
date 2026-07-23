@@ -23,9 +23,19 @@
   </header>
 
   <main>
-    <div class="controls">
+    <div class="modes">
+      <button id="modeVocab" class="mode active">Vokabeln</button>
+      <button id="modeVerbs" class="mode">Verben</button>
+    </div>
+
+    <div class="controls" id="vocabControls">
       <button id="dirToggle" class="chip">🇪🇸 → 🇩🇪</button>
       <button id="catToggle" class="chip">Alle Themen</button>
+    </div>
+
+    <div class="controls" id="verbControls" hidden>
+      <button id="tenseToggle" class="chip">Alle Zeiten</button>
+      <button id="typeToggle" class="chip">Alle Verben</button>
     </div>
 
     <section id="card" class="card">
@@ -43,6 +53,7 @@
   </footer>
 
   <script src="vocab.js"></script>
+  <script src="verbs.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

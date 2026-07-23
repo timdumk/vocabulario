@@ -1,11 +1,12 @@
 // Service Worker – macht die App offline nutzbar.
 // Bei Änderungen an den Dateien: CACHE-Version hochzählen (v1 -> v2 ...).
-const CACHE = "vocabulario-v1";
+const CACHE = "vocabulario-v2";
 const ASSETS = [
   "index.html",
   "style.css",
   "app.js",
   "vocab.js",
+  "verbs.js",
   "manifest.json",
   "icon-180.png",
   "icon-192.png",

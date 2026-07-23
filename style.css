@@ -37,6 +37,20 @@ header h1::before { content: "🇪🇸 "; }
 
 main { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 
+.modes { display: flex; gap: 6px; background: var(--card); border-radius: 999px; padding: 5px; }
+.mode {
+  flex: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 999px;
+  padding: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mode.active { background: var(--rojo); color: #fff; }
+
 .controls { display: flex; gap: 10px; }
 .chip {
   flex: 1;
