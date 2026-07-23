@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Vocabulario</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#c60b1e">
+  <!-- iOS Home-Screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vocabulario">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Vocabulario</h1>
+    <div class="stats">
+      <span id="streak">🔥 0</span>
+      <span id="score">0 / 0</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls">
+      <button id="dirToggle" class="chip">🇪🇸 → 🇬🇧</button>
+      <button id="catToggle" class="chip">Alle Themen</button>
+    </div>
+
+    <section id="card" class="card">
+      <p class="prompt-label" id="promptLabel">Was bedeutet…</p>
+      <h2 id="word">…</h2>
+      <div id="options" class="options"></div>
+      <p id="feedback" class="feedback"></p>
+    </section>
+
+    <button id="nextBtn" class="next" hidden>Weiter →</button>
+  </main>
+
+  <footer>
+    <button id="resetBtn" class="link">Statistik zurücksetzen</button>
+  </footer>
+
+  <script src="vocab.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
