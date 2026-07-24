@@ -1,35 +1,48 @@
 "use strict";
 
 // --- State ---
-let mode = localStorage.getItem("mode") || "vocab"; // "vocab" | "verbs"
-let dir = localStorage.getItem("dir") || "es-de";   // "es-de" | "de-es"
+let view = "uben";                                  // uben | liste | fehler | settings
+let mode = localStorage.getItem("mode") || "vocab"; // vocab | verbs
+let dir = localStorage.getItem("dir") || "es-de";   // es-de | de-es
 let cat = localStorage.getItem("cat") || "Alle";
-let tenseFilter = localStorage.getItem("tense") || "Alle"; // "Alle" | Presente | Indefinido | Perfecto
-let typeFilter = localStorage.getItem("type") || "Alle";   // "Alle" | regular | irregular
+let tenseFilter = localStorage.getItem("tense") || "Alle";
+let typeFilter = localStorage.getItem("type") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
+
+let marked = new Set(JSON.parse(localStorage.getItem("marked") || "[]"));
+let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
+let focusMode = false;
+let focusSet = new Set();
+
 let correctText = null;
+let currentKey = null;   // es-Schlüssel der aktuellen Vokabel (nur vocab)
 let answered = false;
 
 // --- DOM ---
 const $ = (id) => document.getElementById(id);
-const wordEl = $("word");
 const optionsEl = $("options");
 const feedbackEl = $("feedback");
 const promptLabel = $("promptLabel");
+const wordEl = $("word");
 const nextBtn = $("nextBtn");
+const markBtn = $("markBtn");
 
 // --- Helpers ---
 const categories = ["Alle", ...new Set(VOCAB.map((v) => v.cat))];
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
-function saveStats() { localStorage.setItem("stats", JSON.stringify(stats)); }
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+function saveSets() { save("marked", [...marked]); save("errors", [...errors]); }
+function saveStats() { save("stats", stats); }
 function renderStats() {
   $("streak").textContent = "🔥 " + stats.streak;
   $("score").textContent = stats.right + " / " + stats.total;
 }
+function vocabByKey(k) { return VOCAB.find((v) => v.es === k); }
 
-// Baut aus priorisierten Kandidatenlisten bis zu 3 eindeutige Distraktoren (ohne `correct`).
+// Bis zu 3 eindeutige Distraktoren aus priorisierten Listen (ohne `correct`).
 function pickDistractors(correct, ...lists) {
   const out = [];
   const seen = new Set([correct]);
@@ -43,7 +56,7 @@ function pickDistractors(correct, ...lists) {
 }
 
 // --- Frageaufbau (generisch) ---
-function render(labelText, wordText, choices, correct) {
+function render(labelText, wordText, choices, correct, showMark) {
   answered = false;
   correctText = correct;
   feedbackEl.textContent = "";
@@ -53,49 +66,61 @@ function render(labelText, wordText, choices, correct) {
   promptLabel.textContent = labelText;
   wordEl.textContent = wordText;
 
+  markBtn.hidden = !showMark;
+  if (showMark) markBtn.textContent = marked.has(currentKey) ? "★" : "☆";
+
   shuffle(choices).forEach((choice) => {
-    const btn = document.createElement("button");
-    btn.textContent = choice;
+    const btn = el("button", null, choice);
     btn.addEventListener("click", () => choose(btn));
     optionsEl.appendChild(btn);
   });
 }
 
 // --- Vokabel-Frage ---
-function vocabAsk(w) { return dir === "es-de" ? w.es : w.de; }
-function vocabAns(w) { return dir === "es-de" ? w.de : w.es; }
+const vocabAsk = (w) => (dir === "es-de" ? w.es : w.de);
+const vocabAns = (w) => (dir === "es-de" ? w.de : w.es);
+
+function vocabPool() {
+  if (focusMode) {
+    const p = VOCAB.filter((v) => focusSet.has(v.es));
+    if (p.length) return p;
+    exitFocus(); // Fokusliste leer geworden
+  }
+  return cat === "Alle" ? VOCAB : VOCAB.filter((v) => v.cat === cat);
+}
 
 function vocabQuestion() {
-  const words = cat === "Alle" ? VOCAB : VOCAB.filter((v) => v.cat === cat);
+  const words = vocabPool();
   const current = rand(words);
+  currentKey = current.es;
   const correct = vocabAns(current);
   const distractPool = (words.length >= 4 ? words : VOCAB)
     .filter((w) => vocabAns(w) !== correct)
     .map(vocabAns);
   const choices = [correct, ...pickDistractors(correct, distractPool)];
   const label = dir === "es-de" ? "Was bedeutet…" : "Wie heißt auf Spanisch…";
-  render(label, vocabAsk(current), choices, correct);
+  render(label, vocabAsk(current), choices, correct, true);
 }
 
 // --- Verben-Frage ---
 function verbQuestion() {
+  currentKey = null;
   const pool = typeFilter === "Alle" ? VERBS : VERBS.filter((v) => v.type === typeFilter);
   const verb = rand(pool);
   const tense = tenseFilter === "Alle" ? rand(TENSES) : tenseFilter;
   const i = Math.floor(Math.random() * PERSONS.length);
   const correct = verbForm(verb, tense, i);
 
-  // Distraktoren priorisiert: andere Personen gleiche Zeit > gleiches Verb andere Zeiten > andere Verben
   const sameTense = PERSONS.map((_, j) => verbForm(verb, tense, j));
   const otherTenses = TENSES.flatMap((t) => PERSONS.map((_, j) => verbForm(verb, t, j)));
   const otherVerbs = pool.flatMap((v) => PERSONS.map((_, j) => verbForm(v, tense, j)));
   const choices = [correct, ...pickDistractors(correct, sameTense, otherTenses, otherVerbs)];
 
-  render(`${verb.inf} · ${verb.de}`, `${PERSONS[i]} · ${tense}`, choices, correct);
+  render(`${verb.inf} · ${verb.de}`, `${PERSONS[i]} · ${tense}`, choices, correct, false);
 }
 
 function newQuestion() {
-  if (mode === "verbs") verbQuestion();
+  if (mode === "verbs" && !focusMode) verbQuestion();
   else vocabQuestion();
 }
 
@@ -107,16 +132,17 @@ function choose(btn) {
   const correct = btn.textContent === correctText;
   stats.total++;
   if (correct) {
-    stats.right++;
-    stats.streak++;
+    stats.right++; stats.streak++;
     btn.classList.add("correct");
     feedbackEl.textContent = "¡Correcto!";
     feedbackEl.className = "feedback ok";
+    if (currentKey && errors.has(currentKey)) { errors.delete(currentKey); saveSets(); } // gemeistert
   } else {
     stats.streak = 0;
     btn.classList.add("wrong");
     feedbackEl.textContent = "Richtig: " + correctText;
     feedbackEl.className = "feedback bad";
+    if (currentKey) { errors.add(currentKey); saveSets(); }
   }
 
   [...optionsEl.children].forEach((b) => {
@@ -129,6 +155,31 @@ function choose(btn) {
   nextBtn.hidden = false;
 }
 
+// --- Markieren (Stern auf der Karte) ---
+markBtn.addEventListener("click", () => {
+  if (!currentKey) return;
+  if (marked.has(currentKey)) marked.delete(currentKey); else marked.add(currentKey);
+  saveSets();
+  markBtn.textContent = marked.has(currentKey) ? "★" : "☆";
+});
+
+// --- Fokus-Üben (markierte + Fehler) ---
+function startFocus() {
+  const keys = [...new Set([...marked, ...errors])];
+  if (!keys.length) return;
+  focusSet = new Set(keys);
+  focusMode = true;
+  $("focusBanner").hidden = false;
+  $("focusText").textContent = `Fokus: ${keys.length} markierte / Fehler`;
+  switchView("uben");
+  vocabQuestion();
+}
+function exitFocus() {
+  focusMode = false;
+  $("focusBanner").hidden = true;
+}
+$("focusExit").addEventListener("click", () => { exitFocus(); newQuestion(); });
+
 // --- Modus-Umschalter ---
 function setMode(m) {
   mode = m;
@@ -137,10 +188,22 @@ function setMode(m) {
   $("modeVerbs").classList.toggle("active", mode === "verbs");
   $("vocabControls").hidden = mode !== "vocab";
   $("verbControls").hidden = mode !== "verbs";
+  if (mode === "verbs" && focusMode) { exitFocus(); }
   newQuestion();
 }
 $("modeVocab").addEventListener("click", () => setMode("vocab"));
 $("modeVerbs").addEventListener("click", () => setMode("verbs"));
+
+// --- View-Wechsel (Bottom Nav) ---
+function switchView(name) {
+  view = name;
+  ["uben", "liste", "fehler", "settings"].forEach((v) => { $("view-" + v).hidden = v !== name; });
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
+  if (name === "liste") renderListe();
+  if (name === "fehler") renderFehler();
+  if (name === "settings") renderSettings();
+}
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
 // --- Vokabel-Controls ---
 $("dirToggle").addEventListener("click", () => {
@@ -153,6 +216,7 @@ $("catToggle").addEventListener("click", () => {
   cat = categories[(categories.indexOf(cat) + 1) % categories.length];
   localStorage.setItem("cat", cat);
   $("catToggle").textContent = cat === "Alle" ? "Alle Themen" : cat;
+  if (focusMode) { exitFocus(); }
   newQuestion();
 });
 
@@ -174,19 +238,103 @@ $("typeToggle").addEventListener("click", () => {
 });
 
 nextBtn.addEventListener("click", newQuestion);
-$("resetBtn").addEventListener("click", () => {
-  stats = { right: 0, total: 0, streak: 0 };
-  saveStats();
-  renderStats();
-});
+
+// --- View: Alle Vokabeln ---
+function vocabRow(w, opts = {}) {
+  const row = el("div", "row");
+  const txt = el("div", "txt");
+  txt.appendChild(el("span", "es", w.es));
+  txt.appendChild(el("span", "de", w.de));
+  row.appendChild(txt);
+  if (opts.tag === "err") row.appendChild(el("span", "tag err", "Fehler"));
+  if (marked.has(w.es)) row.appendChild(el("span", "tag mark", "★"));
+  const star = el("button", "row-star", marked.has(w.es) ? "★" : "☆");
+  star.addEventListener("click", () => {
+    if (marked.has(w.es)) marked.delete(w.es); else marked.add(w.es);
+    saveSets();
+    if (view === "liste") renderListe(); else renderFehler();
+  });
+  row.appendChild(star);
+  return row;
+}
+
+function renderListe() {
+  const box = $("listeContent");
+  box.innerHTML = "";
+  categories.filter((c) => c !== "Alle").forEach((c) => {
+    box.appendChild(el("div", "group-title", c));
+    VOCAB.filter((w) => w.cat === c).forEach((w) => box.appendChild(vocabRow(w)));
+  });
+  box.appendChild(el("div", "group-title", "Verben"));
+  VERBS.forEach((v) => {
+    const row = el("div", "row");
+    const txt = el("div", "txt");
+    txt.appendChild(el("span", "es", v.inf));
+    txt.appendChild(el("span", "de", v.de + (v.type === "irregular" ? " · unregelmäßig" : "")));
+    row.appendChild(txt);
+    box.appendChild(row);
+  });
+}
+
+// --- View: Markiert & Fehler ---
+function renderFehler() {
+  const box = $("fehlerContent");
+  box.innerHTML = "";
+  const keys = [...new Set([...marked, ...errors])];
+  if (!keys.length) {
+    box.appendChild(el("div", "empty", "Noch nichts markiert. Tippe beim Üben auf den Stern ☆ oder mach einen Fehler – dann taucht die Vokabel hier auf."));
+    return;
+  }
+  const btn = el("button", "btn", `Diese ${keys.length} üben`);
+  btn.addEventListener("click", startFocus);
+  box.appendChild(btn);
+  box.appendChild(el("div", "group-title", "Vokabeln"));
+  keys.map(vocabByKey).filter(Boolean).forEach((w) => {
+    box.appendChild(vocabRow(w, { tag: errors.has(w.es) ? "err" : null }));
+  });
+}
+
+// --- View: Einstellungen ---
+function renderSettings() {
+  const box = $("settingsContent");
+  box.innerHTML = "";
+
+  const rowStats = el("div", "setting-row");
+  rowStats.appendChild(el("span", null, "Punktestand"));
+  rowStats.appendChild(el("span", "val", `${stats.right} / ${stats.total} · 🔥 ${stats.streak}`));
+  box.appendChild(rowStats);
+
+  const rowMark = el("div", "setting-row");
+  rowMark.appendChild(el("span", null, "Markiert / Fehler"));
+  rowMark.appendChild(el("span", "val", `${marked.size} / ${errors.size}`));
+  box.appendChild(rowMark);
+
+  const bStats = el("button", "btn secondary", "Statistik zurücksetzen");
+  bStats.addEventListener("click", () => { stats = { right: 0, total: 0, streak: 0 }; saveStats(); renderStats(); renderSettings(); });
+  box.appendChild(bStats);
+
+  const bErr = el("button", "btn secondary", "Fehlervokabeln zurücksetzen");
+  bErr.style.marginTop = "10px";
+  bErr.addEventListener("click", () => { errors.clear(); saveSets(); renderSettings(); });
+  box.appendChild(bErr);
+
+  const bMark = el("button", "btn secondary", "Markierungen löschen");
+  bMark.style.marginTop = "10px";
+  bMark.addEventListener("click", () => { marked.clear(); saveSets(); renderSettings(); });
+  box.appendChild(bMark);
+}
 
 // --- Init ---
 $("dirToggle").textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
 $("catToggle").textContent = cat === "Alle" ? "Alle Themen" : cat;
 $("tenseToggle").textContent = tenseFilter === "Alle" ? "Alle Zeiten" : tenseFilter;
 $("typeToggle").textContent = typeLabel[typeFilter];
+$("modeVocab").classList.toggle("active", mode === "vocab");
+$("modeVerbs").classList.toggle("active", mode === "verbs");
+$("vocabControls").hidden = mode !== "vocab";
+$("verbControls").hidden = mode !== "verbs";
 renderStats();
-setMode(mode); // setzt Controls-Sichtbarkeit + erste Frage
+newQuestion();
 
 // --- Service Worker (offline) ---
 if ("serviceWorker" in navigator) {
