@@ -2,8 +2,14 @@
 
 [[INDEX]] | [[uni/spanisch/context|Spanisch (Uni)]] | [[life/spanisch-ziel/context|Spanisch-Ziel]]
 
+## Live
+- **App:** https://timdumk.github.io/vocabulario/  (GitHub Pages, HTTPS, offline-fähig)
+- **Repo:** https://github.com/timdumk/vocabulario  (public)
+- Aufs iPhone: URL in Safari öffnen → Teilen → „Zum Home-Bildschirm".
+- Deployen nach Änderung: `git -C ~/PersonalOS/projects/spanisch-app push` → Pages baut automatisch (~1 Min).
+
 ## Repo-Setup (wichtig)
-Dieser Ordner ist ein **eigenes Git-Repo** (`.git` liegt hier), Branch `main`.
+Dieser Ordner ist ein **eigenes Git-Repo** (`.git` liegt hier), Branch `main`, Remote `origin` → GitHub.
 Er liegt physisch im Vault (immer erreichbar), wird aber vom **Vault-Git ignoriert**
 (`projects/spanisch-app/` steht in der PersonalOS-`.gitignore`) → kein „Repo-im-Repo"-Konflikt,
 Obsidian-Backup fasst die App nicht an.
