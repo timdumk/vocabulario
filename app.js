@@ -14,6 +14,7 @@ localStorage.setItem("cats", JSON.stringify([...selectedCats]));
 let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
+let theme = localStorage.getItem("theme") || "light";
 
 let marked = new Set(JSON.parse(localStorage.getItem("marked") || "[]"));
 let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
@@ -45,6 +46,11 @@ function updateStreakBadge() {
   const b = $("cardStreak");
   if (stats.streak > 0) { b.textContent = "🔥 " + stats.streak; b.hidden = false; }
   else b.hidden = true;
+}
+function applyTheme() {
+  document.body.classList.toggle("dark", theme === "dark");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = theme === "dark" ? "#1b1714" : "#f4ecd9";
 }
 function vocabByKey(k) { return VOCAB.find((v) => v.es === k); }
 
@@ -325,6 +331,19 @@ function renderSettings() {
   const box = $("settingsContent");
   box.innerHTML = "";
 
+  const rowTheme = el("div", "setting-row");
+  rowTheme.appendChild(el("span", null, "Dunkelmodus"));
+  const sw = el("div", "switch" + (theme === "dark" ? " on" : ""));
+  sw.appendChild(el("div", "knob"));
+  sw.addEventListener("click", () => {
+    theme = theme === "dark" ? "light" : "dark";
+    localStorage.setItem("theme", theme);
+    applyTheme();
+    sw.classList.toggle("on");
+  });
+  rowTheme.appendChild(sw);
+  box.appendChild(rowTheme);
+
   const bStats = el("button", "btn secondary", "Statistik zurücksetzen");
   bStats.addEventListener("click", () => { stats = { right: 0, total: 0, streak: 0 }; saveStats(); updateStreakBadge(); renderSettings(); });
   box.appendChild(bStats);
@@ -341,6 +360,7 @@ function renderSettings() {
 }
 
 // --- Init ---
+applyTheme();
 $("dirToggle").textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
 $("catBtn").textContent = catLabel();
 renderCatPanel();
