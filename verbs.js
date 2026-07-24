@@ -46,6 +46,61 @@ const VERBS = [
     presente:   ["hago", "haces", "hace", "hacemos", "hacéis", "hacen"],
     indefinido: ["hice", "hiciste", "hizo", "hicimos", "hicisteis", "hicieron"],
   },
+  {
+    inf: "estar", de: "sein (Zustand/Ort)", type: "irregular", part: "estado",
+    presente:   ["estoy", "estás", "está", "estamos", "estáis", "están"],
+    indefinido: ["estuve", "estuviste", "estuvo", "estuvimos", "estuvisteis", "estuvieron"],
+  },
+  {
+    inf: "poder", de: "können", type: "irregular", part: "podido",
+    presente:   ["puedo", "puedes", "puede", "podemos", "podéis", "pueden"],
+    indefinido: ["pude", "pudiste", "pudo", "pudimos", "pudisteis", "pudieron"],
+  },
+  {
+    inf: "querer", de: "wollen / mögen", type: "irregular", part: "querido",
+    presente:   ["quiero", "quieres", "quiere", "queremos", "queréis", "quieren"],
+    indefinido: ["quise", "quisiste", "quiso", "quisimos", "quisisteis", "quisieron"],
+  },
+  {
+    inf: "decir", de: "sagen", type: "irregular", part: "dicho",
+    presente:   ["digo", "dices", "dice", "decimos", "decís", "dicen"],
+    indefinido: ["dije", "dijiste", "dijo", "dijimos", "dijisteis", "dijeron"],
+  },
+  {
+    inf: "ver", de: "sehen", type: "irregular", part: "visto",
+    presente:   ["veo", "ves", "ve", "vemos", "veis", "ven"],
+    indefinido: ["vi", "viste", "vio", "vimos", "visteis", "vieron"],
+  },
+  {
+    inf: "dar", de: "geben", type: "irregular", part: "dado",
+    presente:   ["doy", "das", "da", "damos", "dais", "dan"],
+    indefinido: ["di", "diste", "dio", "dimos", "disteis", "dieron"],
+  },
+  {
+    inf: "saber", de: "wissen", type: "irregular", part: "sabido",
+    presente:   ["sé", "sabes", "sabe", "sabemos", "sabéis", "saben"],
+    indefinido: ["supe", "supiste", "supo", "supimos", "supisteis", "supieron"],
+  },
+  {
+    inf: "venir", de: "kommen", type: "irregular", part: "venido",
+    presente:   ["vengo", "vienes", "viene", "venimos", "venís", "vienen"],
+    indefinido: ["vine", "viniste", "vino", "vinimos", "vinisteis", "vinieron"],
+  },
+  {
+    inf: "poner", de: "stellen / legen", type: "irregular", part: "puesto",
+    presente:   ["pongo", "pones", "pone", "ponemos", "ponéis", "ponen"],
+    indefinido: ["puse", "pusiste", "puso", "pusimos", "pusisteis", "pusieron"],
+  },
+  {
+    inf: "conocer", de: "kennen(lernen)", type: "irregular", part: "conocido",
+    presente:   ["conozco", "conoces", "conoce", "conocemos", "conocéis", "conocen"],
+    indefinido: ["conocí", "conociste", "conoció", "conocimos", "conocisteis", "conocieron"],
+  },
+  {
+    inf: "salir", de: "hinausgehen", type: "irregular", part: "salido",
+    presente:   ["salgo", "sales", "sale", "salimos", "salís", "salen"],
+    indefinido: ["salí", "saliste", "salió", "salimos", "salisteis", "salieron"],
+  },
 ];
 
 const TENSES = ["Presente", "Indefinido", "Perfecto"];
