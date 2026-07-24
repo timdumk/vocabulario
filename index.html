@@ -16,10 +16,6 @@
 <body>
   <header>
     <h1>Vocabulario</h1>
-    <div class="stats">
-      <span id="streak">🔥 0</span>
-      <span id="score">0 / 0</span>
-    </div>
   </header>
 
   <main>
@@ -37,8 +33,9 @@
 
       <div class="controls" id="vocabControls">
         <button id="dirToggle" class="chip">🇪🇸 → 🇩🇪</button>
-        <button id="catToggle" class="chip">Alle Themen</button>
+        <button id="catBtn" class="chip">Alle Themen</button>
       </div>
+      <div id="catPanel" class="panel" hidden></div>
 
       <div class="controls" id="verbControls" hidden>
         <button id="tenseToggle" class="chip">Alle Zeiten</button>
@@ -46,7 +43,10 @@
       </div>
 
       <section id="card" class="card">
-        <button id="markBtn" class="mark" aria-label="Vokabel markieren">☆</button>
+        <div class="card-top">
+          <span id="cardStreak" class="card-streak" hidden></span>
+          <button id="markBtn" class="mark" aria-label="Vokabel markieren">☆</button>
+        </div>
         <p class="prompt-label" id="promptLabel">Was bedeutet…</p>
         <h2 id="word">…</h2>
         <div id="options" class="options"></div>
