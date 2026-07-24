@@ -1,6 +1,7 @@
-// Service Worker – macht die App offline nutzbar.
-// Bei Änderungen an den Dateien: CACHE-Version hochzählen (v1 -> v2 ...).
-const CACHE = "vocabulario-v6";
+// Service Worker – hält die App aktuell (network-first) und offline-fähig.
+// network-first: online immer die neueste Version laden + Cache auffrischen;
+// nur wenn offline, wird die gespeicherte Version ausgeliefert.
+const CACHE = "vocabulario-v7";
 const ASSETS = [
   "index.html",
   "style.css",
@@ -28,7 +29,14 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
+  if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((r) => r || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
