@@ -6,6 +6,11 @@ let mode = localStorage.getItem("mode") || "vocab"; // vocab | verbs
 let dir = localStorage.getItem("dir") || "es-de";   // es-de | de-es
 const allCats = [...new Set(VOCAB.map((v) => v.cat))];
 let selectedCats = new Set(JSON.parse(localStorage.getItem("cats") || "null") || allCats);
+// Neu hinzugekommene Kategorien automatisch aktivieren
+const knownCats = new Set(JSON.parse(localStorage.getItem("knownCats") || "[]"));
+allCats.forEach((c) => { if (!knownCats.has(c)) selectedCats.add(c); });
+localStorage.setItem("knownCats", JSON.stringify(allCats));
+localStorage.setItem("cats", JSON.stringify([...selectedCats]));
 let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
