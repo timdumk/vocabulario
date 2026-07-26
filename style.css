@@ -368,6 +368,18 @@ main {
 .mode:active, .panel-row:active { transform: scale(.97); }
 .panel-row:active { background: var(--glass); }
 
+/* --- Knackigerer Druck-Effekt (überschreibt die dezenten Werte) --- */
+.options button, .next, .btn, .chip, .mode, .tab, .panel-row,
+.mark, .speak, .row-star, .row-del, .banner-x, .switch {
+  transition: transform .1s cubic-bezier(.2,.7,.3,1), box-shadow .12s ease, background .15s ease, filter .1s ease;
+}
+.options button:active, .next:active, .btn:active, .chip:active,
+.mode:active, .tab:active, .panel-row:active {
+  transform: scale(.94); filter: brightness(.94); box-shadow: none;
+}
+.mark:active, .speak:active, .row-star:active, .row-del:active, .banner-x:active { transform: scale(.8); }
+.switch:active { transform: scale(.93); }
+
 /* Barrierefreiheit: Animationen reduzieren, wenn gewünscht */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
