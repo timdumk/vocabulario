@@ -360,3 +360,9 @@ main {
 }
 .mode:active, .panel-row:active { transform: scale(.97); }
 .panel-row:active { background: var(--glass); }
+
+/* Barrierefreiheit: Animationen reduzieren, wenn gewünscht */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  *:active { transform: none !important; }
+}
