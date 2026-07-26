@@ -54,12 +54,20 @@ const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
+// --- Linien-Icons (SVG, stroke: currentColor) ---
+const ICONS = {
+  speaker: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a4 4 0 0 1 0 7"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.05 3.95.96 5.55L12 16.9 6.03 19l.96-5.55L2.9 9.5l5.6-.8z"/></svg>',
+  flame: '<svg viewBox="0 0 24 24"><path d="M12 3c.8 2.8-1.8 3.9-1.8 6.6a1.8 1.8 0 0 0 3.6.2c1.8 1.7 3 3.2 3 5.6a4.8 4.8 0 0 1-9.6 0C7.2 11 10.5 9.6 12 3z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.8h6V7M6.5 7l.9 12.2h9.2L17.5 7"/></svg>',
+};
+
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 function saveSets() { save("marked", [...marked]); save("errors", [...errors]); }
 function saveStats() { save("stats", stats); }
 function updateStreakBadge() {
   const b = $("cardStreak");
-  if (stats.streak > 0) { b.textContent = "🔥 " + stats.streak; b.hidden = false; }
+  if (stats.streak > 0) { b.innerHTML = ICONS.flame + " " + stats.streak; b.hidden = false; }
   else b.hidden = true;
 }
 function applyTheme() {
@@ -138,7 +146,7 @@ function render(labelText, wordText, choices, correct, showMark) {
   wordEl.textContent = wordText;
 
   markBtn.hidden = !showMark;
-  if (showMark) markBtn.textContent = marked.has(currentKey) ? "★" : "☆";
+  if (showMark) { markBtn.innerHTML = ICONS.star; markBtn.classList.toggle("on", marked.has(currentKey)); }
   updateStreakBadge();
 
   if (practice === "write") renderWrite();
@@ -318,7 +326,7 @@ markBtn.addEventListener("click", () => {
   if (!currentKey) return;
   if (marked.has(currentKey)) marked.delete(currentKey); else marked.add(currentKey);
   saveSets();
-  markBtn.textContent = marked.has(currentKey) ? "★" : "☆";
+  markBtn.classList.toggle("on", marked.has(currentKey));
 });
 
 // --- Fokus-Üben (markierte + Fehler) ---
@@ -442,8 +450,9 @@ function vocabRow(w, opts = {}) {
   txt.appendChild(el("span", "de", w.de));
   row.appendChild(txt);
   if (opts.tag === "err") row.appendChild(el("span", "tag err", "Fehler"));
-  if (marked.has(w.es)) row.appendChild(el("span", "tag mark", "★"));
-  const star = el("button", "row-star", marked.has(w.es) ? "★" : "☆");
+  if (marked.has(w.es)) { const t = el("span", "tag mark"); t.innerHTML = ICONS.star; row.appendChild(t); }
+  const star = el("button", "row-star" + (marked.has(w.es) ? " on" : ""));
+  star.innerHTML = ICONS.star;
   star.addEventListener("click", () => {
     if (marked.has(w.es)) marked.delete(w.es); else marked.add(w.es);
     saveSets();
@@ -451,7 +460,8 @@ function vocabRow(w, opts = {}) {
   });
   row.appendChild(star);
   if (opts.onDelete) {
-    const del = el("button", "row-del", "🗑");
+    const del = el("button", "row-del");
+    del.innerHTML = ICONS.trash;
     del.addEventListener("click", opts.onDelete);
     row.appendChild(del);
   }

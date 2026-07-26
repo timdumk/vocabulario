@@ -177,16 +177,22 @@ main {
   position: absolute; top: 12px; left: 14px; right: 14px;
   display: flex; align-items: center; justify-content: flex-end; gap: 10px;
 }
-.card-streak { color: var(--mustard); font-weight: 700; font-size: 15px; }
+.card-streak { color: var(--mustard); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 3px; }
+.card-streak svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
 .speak {
-  background: none; border: none; font-size: 19px; line-height: 1;
-  cursor: pointer; padding: 0; opacity: .8;
+  background: none; border: none; line-height: 0;
+  cursor: pointer; padding: 0; color: var(--muted);
 }
-.speak:active { transform: scale(.9); }
 .mark {
-  background: none; border: none; font-size: 24px; line-height: 1;
+  background: none; border: none; line-height: 0;
   color: var(--mustard); cursor: pointer; padding: 0;
 }
+/* Icon-Buttons: SVG-Größe/Stil */
+.speak svg, .mark svg, .row-star svg, .row-del svg {
+  width: 22px; height: 22px; fill: none; stroke: currentColor;
+  stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+}
+.mark.on svg, .row-star.on svg { fill: currentColor; }
 .prompt-label { color: var(--muted); font-size: 14px; text-align: center; font-weight: 600; }
 #word { text-align: center; font-size: 32px; font-weight: 800; line-height: 1.15; word-break: break-word; }
 
@@ -243,12 +249,13 @@ main {
 .row .de { color: var(--muted); font-size: 14px; }
 .row .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .row .tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-.tag.mark { background: var(--mustard-soft); color: #5a4416; }
+.tag.mark { background: var(--mustard-soft); color: #5a4416; display: inline-flex; padding: 4px; }
+.tag.mark svg { width: 13px; height: 13px; fill: currentColor; stroke: none; }
 .tag.err { background: var(--bad-bg); color: var(--bad); }
-.row-star { background: none; border: none; font-size: 20px; color: var(--mustard); cursor: pointer; }
+.row-star { background: none; border: none; line-height: 0; color: var(--mustard); cursor: pointer; padding: 4px; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
-.row-del { background: none; border: none; font-size: 17px; cursor: pointer; opacity: .8; }
+.row-del { background: none; border: none; line-height: 0; color: var(--muted); cursor: pointer; padding: 4px; }
 
 /* Suche + eigene Vokabeln */
 .search {
