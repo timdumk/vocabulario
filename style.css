@@ -35,6 +35,7 @@ body.dark {
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; } /* kein Pinch-/Doppeltipp-Zoom */
 
 body {
   font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
