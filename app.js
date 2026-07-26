@@ -635,6 +635,9 @@ $("verbControls").hidden = mode !== "verbs";
 document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === practice));
 newQuestion();
 
+// iOS: aktiviert :active-Drück-Effekte beim Antippen (sonst ignoriert Safari sie bei Touch)
+document.addEventListener("touchstart", () => {}, { passive: true });
+
 // --- Service Worker (offline) ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
