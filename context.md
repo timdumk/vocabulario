@@ -19,13 +19,21 @@ Persönliche **PWA** zum Vokabeltraining per Multiple Choice, **Deutsch ↔ Span
 Läuft im Browser, per „Zum Home-Bildschirm hinzufügen" wie eine iOS-App (Vollbild, Icon, offline).
 Stack: Vanilla HTML/CSS/JS, keine Frameworks.
 
-## Stand
-- Grundgerüst fertig: Multiple Choice, 🇪🇸→🇩🇪 / 🇩🇪→🇪🇸 umschaltbar, Themen-Filter, Streak + Score, offline (Service Worker), Home-Screen-Icon.
-- Vokabeln: Starter-Set in `vocab.js` (Básico, Verbos, Personas, Tiempo, Lugares, Comida).
+## Stand (Feature-Ausbau abgeschlossen, Client-Seite)
+- **Übungsarten:** Auswahl (Multiple Choice) · Schreiben (Textfeld, tolerant) · Karten (umdrehen + Selbstbewertung).
+- **Spaced Repetition:** Leitner-Boxen je Wort (`progress`-Store), fällige/schwache Wörter bevorzugt. Abschaltbar.
+- **Audio:** 🔊 vorlesen (SpeechSynthesis `es-ES`) + Auto-Vorlesen-Toggle.
+- **Statistik** (in „Mehr"): geübt / gemeistert / Trefferquote + Themen-Balken.
+- **Eigene Vokabeln:** in-App hinzufügen/löschen (`customVocab`), Suche/Filter in der Liste.
+- **Verben:** 18 Verben × Presente/Indefinido/Perfecto/**Condicional** + **Sonderfälle** gustar/haber.
+- Basis: 96 Vokabeln (8 Kategorien), 🇪🇸↔🇩🇪, Themen-Mehrfachauswahl, Dark/Light, Streak, offline, Home-Screen-Icon.
 
 ## Dateien
-- `index.html` Struktur · `style.css` Design · `app.js` Logik · `vocab.js` **Wortschatz**
-- `manifest.json` / `sw.js` PWA-Setup · `icon-*.png` Icons
+- `index.html` Struktur · `style.css` Design · `app.js` Logik · `vocab.js` **Wortschatz** · `verbs.js` **Verben + Sonderfälle**
+- `manifest.json` / `sw.js` PWA-Setup (Cache-Version bei jedem Deploy hoch) · `icon-*.png` Icons
+
+## localStorage-Keys
+`progress` (Leitner) · `customVocab` · `marked` · `errors` · `stats` · `cats`/`knownCats` · `theme` · `srs` · `autoSpeak` · `practice` · `mode`/`dir`/`tense`/`type`
 
 ## Lokal testen
 ```
@@ -39,8 +47,9 @@ python3 -m http.server 8123
 - **Verben:** Konjugation abfragen (Person · Zeitform → Form). Filter: Zeit (Alle/Presente/Indefinido/Perfecto) + Typ (Alle/Regelmäßig/Unregelmäßig). Daten in `verbs.js`, Perfecto automatisch aus `haber + Partizip`. Quelle: [[uni/spanisch/Verben-Konjugation]].
 
 ## Roadmap
-- [x] Konjugations-Modus (Starter: 7 Verben — hablar/comer/vivir + ser/ir/tener/hacer)
-- [ ] Weitere Verben aus [[uni/spanisch/Verben-Konjugation]] ergänzen (20 total), inkl. Condicional-Zeitform
-- [ ] Vokabel-Kategorien ausbauen (Körperteile, Essen, …)
-- [ ] Hosting entscheiden (lokal vs. GitHub Pages) → echte iPhone-URL
-- [ ] Ggf. GitHub-Remote (Repo aktuell nur lokal)
+- [x] Konjugations-Modus + alle 18 Verben + Condicional + Sonderfälle
+- [x] Vokabel-Kategorien ausgebaut (Ubicación, El cuerpo)
+- [x] Hosting: GitHub Pages (https://timdumk.github.io/vocabulario/)
+- [x] Feature-Ausbau Phasen 1–5 (SRS, Übungsarten, Statistik, eigene Vokabeln)
+- [ ] **LATER — Backend-Meilenstein** (bewusst zurückgestellt): Login + Geräte-Sync + KI-Beispielsätze.
+  Empfohlener Stack: Supabase (Auth + Postgres + Edge Functions). Beendet „gratis-statisch".
