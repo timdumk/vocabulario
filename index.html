@@ -66,6 +66,14 @@
     <!-- ============ LISTE (alle Vokabeln) ============ -->
     <section class="view" id="view-liste" hidden>
       <h2 class="view-title">Alle Vokabeln</h2>
+      <input id="listeSearch" class="search" type="search" placeholder="Suchen… (Spanisch oder Deutsch)" autocomplete="off">
+      <details class="addbox">
+        <summary>+ Eigene Vokabel</summary>
+        <input id="addEs" class="add-input" placeholder="Spanisch" autocomplete="off">
+        <input id="addDe" class="add-input" placeholder="Deutsch" autocomplete="off">
+        <input id="addCat" class="add-input" placeholder="Thema (optional, sonst „Eigene“)" autocomplete="off">
+        <button id="addBtn" class="btn">Hinzufügen</button>
+      </details>
       <div id="listeContent"></div>
     </section>
 

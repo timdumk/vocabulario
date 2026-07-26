@@ -4,13 +4,22 @@
 let view = "uben";                                  // uben | liste | fehler | settings
 let mode = localStorage.getItem("mode") || "vocab"; // vocab | verbs
 let dir = localStorage.getItem("dir") || "es-de";   // es-de | de-es
-const allCats = [...new Set(VOCAB.map((v) => v.cat))];
+// Wortliste = Basis (vocab.js) + eigene Vokabeln; zur Laufzeit zusammengesetzt.
+let customVocab = JSON.parse(localStorage.getItem("customVocab") || "[]");
+let WORDS = [];
+let allCats = [];
+function rebuildWords() {
+  WORDS = VOCAB.concat(customVocab);
+  allCats = [...new Set(WORDS.map((w) => w.cat))];
+}
+rebuildWords();
 let selectedCats = new Set(JSON.parse(localStorage.getItem("cats") || "null") || allCats);
 // Neu hinzugekommene Kategorien automatisch aktivieren
 const knownCats = new Set(JSON.parse(localStorage.getItem("knownCats") || "[]"));
 allCats.forEach((c) => { if (!knownCats.has(c)) selectedCats.add(c); });
 localStorage.setItem("knownCats", JSON.stringify(allCats));
 localStorage.setItem("cats", JSON.stringify([...selectedCats]));
+let listeQuery = "";
 let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
@@ -58,7 +67,7 @@ function applyTheme() {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = theme === "dark" ? "#1b1714" : "#f4ecd9";
 }
-function vocabByKey(k) { return VOCAB.find((v) => v.es === k); }
+function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
 
 // --- Fortschritt (Leitner-Boxen 0–5) ---
 const BOX_MS = [0, 10 * 60e3, 24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 30 * 24 * 3600e3];
@@ -217,12 +226,12 @@ const vocabAns = (w) => (dir === "es-de" ? w.de : w.es);
 
 function vocabPool() {
   if (focusMode) {
-    const p = VOCAB.filter((v) => focusSet.has(v.es));
+    const p = WORDS.filter((v) => focusSet.has(v.es));
     if (p.length) return p;
     exitFocus(); // Fokusliste leer geworden
   }
   const cats = selectedCats.size ? selectedCats : new Set(allCats);
-  return VOCAB.filter((v) => cats.has(v.cat));
+  return WORDS.filter((v) => cats.has(v.cat));
 }
 
 function vocabQuestion() {
@@ -231,7 +240,7 @@ function vocabQuestion() {
   currentKey = current.es;
   currentSpanish = current.es;
   const correct = vocabAns(current);
-  const distractPool = (words.length >= 4 ? words : VOCAB)
+  const distractPool = (words.length >= 4 ? words : WORDS)
     .filter((w) => vocabAns(w) !== correct)
     .map(vocabAns);
   const choices = [correct, ...pickDistractors(correct, distractPool)];
@@ -398,6 +407,16 @@ $("typeToggle").addEventListener("click", () => {
 
 nextBtn.addEventListener("click", newQuestion);
 
+// --- Liste: Suche + eigene Vokabeln ---
+$("listeSearch").addEventListener("input", (e) => { listeQuery = e.target.value; renderListe(); });
+$("addBtn").addEventListener("click", () => {
+  if (addCustom($("addEs").value, $("addDe").value, $("addCat").value)) {
+    $("addEs").value = ""; $("addDe").value = ""; $("addCat").value = "";
+    listeQuery = ""; $("listeSearch").value = "";
+    renderListe();
+  }
+});
+
 // --- View: Alle Vokabeln ---
 function vocabRow(w, opts = {}) {
   const row = el("div", "row");
@@ -414,25 +433,61 @@ function vocabRow(w, opts = {}) {
     if (view === "liste") renderListe(); else renderFehler();
   });
   row.appendChild(star);
+  if (opts.onDelete) {
+    const del = el("button", "row-del", "🗑");
+    del.addEventListener("click", opts.onDelete);
+    row.appendChild(del);
+  }
   return row;
+}
+
+// Eigene Vokabeln verwalten
+function addCustom(es, de, cat) {
+  es = es.trim(); de = de.trim(); cat = (cat || "").trim() || "Eigene";
+  if (!es || !de) return false;
+  customVocab.push({ es, de, cat });
+  save("customVocab", customVocab);
+  rebuildWords();
+  if (!selectedCats.has(cat)) { selectedCats.add(cat); save("cats", [...selectedCats]); }
+  const kc = new Set(JSON.parse(localStorage.getItem("knownCats") || "[]"));
+  kc.add(cat); localStorage.setItem("knownCats", JSON.stringify([...kc]));
+  renderCatPanel();
+  $("catBtn").textContent = catLabel();
+  return true;
+}
+function deleteCustom(es) {
+  customVocab = customVocab.filter((c) => c.es !== es);
+  save("customVocab", customVocab);
+  rebuildWords();
+  renderListe();
 }
 
 function renderListe() {
   const box = $("listeContent");
   box.innerHTML = "";
+  const q = listeQuery.trim().toLowerCase();
+  const match = (a, b) => !q || a.toLowerCase().includes(q) || b.toLowerCase().includes(q);
+  const isCustom = (w) => customVocab.some((c) => c.es === w.es);
+
   allCats.forEach((c) => {
+    const words = WORDS.filter((w) => w.cat === c && match(w.es, w.de));
+    if (!words.length) return;
     box.appendChild(el("div", "group-title", c));
-    VOCAB.filter((w) => w.cat === c).forEach((w) => box.appendChild(vocabRow(w)));
+    words.forEach((w) => box.appendChild(vocabRow(w, isCustom(w) ? { onDelete: () => deleteCustom(w.es) } : {})));
   });
-  box.appendChild(el("div", "group-title", "Verben"));
-  VERBS.forEach((v) => {
-    const row = el("div", "row");
-    const txt = el("div", "txt");
-    txt.appendChild(el("span", "es", v.inf));
-    txt.appendChild(el("span", "de", v.de + (v.type === "irregular" ? " · unregelmäßig" : "")));
-    row.appendChild(txt);
-    box.appendChild(row);
-  });
+
+  const verbs = VERBS.filter((v) => match(v.inf, v.de));
+  if (verbs.length) {
+    box.appendChild(el("div", "group-title", "Verben"));
+    verbs.forEach((v) => {
+      const row = el("div", "row");
+      const txt = el("div", "txt");
+      txt.appendChild(el("span", "es", v.inf));
+      txt.appendChild(el("span", "de", v.de + (v.type === "irregular" ? " · unregelmäßig" : "")));
+      row.appendChild(txt);
+      box.appendChild(row);
+    });
+  }
 }
 
 // --- View: Markiert & Fehler ---
@@ -481,7 +536,7 @@ function renderStatsInto(box) {
 
   const grid = el("div", "stat-grid");
   grid.append(
-    statCard(`${geübt}/${VOCAB.length}`, "geübt"),
+    statCard(`${geübt}/${WORDS.length}`, "geübt"),
     statCard(gemeistert, "gemeistert"),
     statCard(quote + "%", "Trefferquote"),
   );
@@ -489,7 +544,7 @@ function renderStatsInto(box) {
 
   box.appendChild(el("div", "stat-h", "Nach Thema"));
   allCats.forEach((c) => {
-    const words = VOCAB.filter((w) => w.cat === c);
+    const words = WORDS.filter((w) => w.cat === c);
     const sumBox = words.reduce((a, w) => a + ((progress[w.es]?.box) || 0), 0);
     const pct = words.length ? Math.round((sumBox / (5 * words.length)) * 100) : 0;
     box.appendChild(catBar(c, pct));

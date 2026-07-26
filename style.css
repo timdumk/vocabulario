@@ -186,6 +186,25 @@ main {
 .row-star { background: none; border: none; font-size: 20px; color: var(--mustard); cursor: pointer; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
+.row-del { background: none; border: none; font-size: 17px; cursor: pointer; opacity: .8; }
+
+/* Suche + eigene Vokabeln */
+.search {
+  width: 100%; background: var(--surface); color: var(--text);
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 15px;
+}
+.search:focus { outline: none; border-color: var(--wine); }
+.addbox {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-top: 10px;
+}
+.addbox summary { cursor: pointer; font-weight: 700; color: var(--wine); }
+.add-input {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; margin-top: 8px;
+}
+.add-input:focus { outline: none; border-color: var(--wine); }
+.addbox .btn { margin-top: 10px; }
 
 /* --- Buttons in Views --- */
 .btn {
