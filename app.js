@@ -453,11 +453,58 @@ function renderFehler() {
   });
 }
 
-// --- View: Einstellungen ---
+// --- Statistik (liest den progress-Store) ---
+function statCard(val, lbl) {
+  const c = el("div", "stat-card");
+  c.appendChild(el("div", "val", String(val)));
+  c.appendChild(el("div", "lbl", lbl));
+  return c;
+}
+function catBar(name, pct) {
+  const row = el("div", "cat-bar");
+  row.appendChild(el("span", "name", name));
+  const track = el("div", "track");
+  const fill = el("div", "fill");
+  fill.style.width = pct + "%";
+  track.appendChild(fill);
+  row.appendChild(track);
+  row.appendChild(el("span", "pct", pct + "%"));
+  return row;
+}
+function renderStatsInto(box) {
+  const entries = Object.entries(progress);
+  const geübt = entries.length;
+  const gemeistert = entries.filter(([, p]) => p.box >= 5).length;
+  const tr = entries.reduce((a, [, p]) => a + p.right, 0);
+  const tw = entries.reduce((a, [, p]) => a + p.wrong, 0);
+  const quote = tr + tw ? Math.round((tr / (tr + tw)) * 100) : 0;
+
+  const grid = el("div", "stat-grid");
+  grid.append(
+    statCard(`${geübt}/${VOCAB.length}`, "geübt"),
+    statCard(gemeistert, "gemeistert"),
+    statCard(quote + "%", "Trefferquote"),
+  );
+  box.appendChild(grid);
+
+  box.appendChild(el("div", "stat-h", "Nach Thema"));
+  allCats.forEach((c) => {
+    const words = VOCAB.filter((w) => w.cat === c);
+    const sumBox = words.reduce((a, w) => a + ((progress[w.es]?.box) || 0), 0);
+    const pct = words.length ? Math.round((sumBox / (5 * words.length)) * 100) : 0;
+    box.appendChild(catBar(c, pct));
+  });
+}
+
+// --- View: Mehr (Statistik + Einstellungen) ---
 function renderSettings() {
   const box = $("settingsContent");
   box.innerHTML = "";
 
+  box.appendChild(el("div", "stat-h", "Statistik"));
+  renderStatsInto(box);
+
+  box.appendChild(el("div", "stat-h", "Einstellungen"));
   box.appendChild(toggleRow("Dunkelmodus", theme === "dark", (on) => {
     theme = on ? "dark" : "light";
     localStorage.setItem("theme", theme);
@@ -472,9 +519,13 @@ function renderSettings() {
     localStorage.setItem("autoSpeak", on ? "on" : "off");
   }));
 
-  const bStats = el("button", "btn secondary", "Statistik zurücksetzen");
+  const bStats = el("button", "btn secondary", "Statistik & Fortschritt zurücksetzen");
   bStats.style.marginTop = "10px";
-  bStats.addEventListener("click", () => { stats = { right: 0, total: 0, streak: 0 }; saveStats(); updateStreakBadge(); renderSettings(); });
+  bStats.addEventListener("click", () => {
+    stats = { right: 0, total: 0, streak: 0 }; saveStats();
+    progress = {}; save("progress", progress);
+    updateStreakBadge(); renderSettings();
+  });
   box.appendChild(bStats);
 
   const bErr = el("button", "btn secondary", "Fehlervokabeln zurücksetzen");

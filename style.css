@@ -202,6 +202,25 @@ main {
 }
 .setting-row .val { color: var(--muted); font-weight: 600; }
 
+/* Statistik */
+.stat-h {
+  font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--wine); margin: 16px 2px 8px;
+}
+.stat-h:first-child { margin-top: 4px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 8px; text-align: center;
+}
+.stat-card .val { font-size: 20px; font-weight: 800; color: var(--wine); }
+.stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.cat-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 14px; }
+.cat-bar .name { width: 92px; flex: none; font-weight: 600; }
+.cat-bar .track { flex: 1; height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.cat-bar .fill { height: 100%; background: var(--mustard); border-radius: 999px; }
+.cat-bar .pct { width: 40px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 /* --- Bottom Nav --- */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0;
