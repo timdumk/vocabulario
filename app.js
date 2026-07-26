@@ -18,6 +18,7 @@ let theme = localStorage.getItem("theme") || "light";
 let progress = JSON.parse(localStorage.getItem("progress") || "{}"); // { es: {right,wrong,box,due} }
 let srs = localStorage.getItem("srs") !== "off";                     // Spaced Repetition an (default)
 let autoSpeak = localStorage.getItem("autoSpeak") === "on";          // spanisches Wort autom. vorlesen
+let practice = localStorage.getItem("practice") || "mc";             // mc | write | cards
 
 let marked = new Set(JSON.parse(localStorage.getItem("marked") || "[]"));
 let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
@@ -131,11 +132,83 @@ function render(labelText, wordText, choices, correct, showMark) {
   if (showMark) markBtn.textContent = marked.has(currentKey) ? "★" : "☆";
   updateStreakBadge();
 
+  if (practice === "write") renderWrite();
+  else if (practice === "cards") renderCards();
+  else renderMC(choices);
+}
+
+// Übungsart „Auswahl" (Multiple Choice)
+function renderMC(choices) {
   shuffle(choices).forEach((choice) => {
     const btn = el("button", null, choice);
-    btn.addEventListener("click", () => choose(btn));
+    btn.addEventListener("click", () => {
+      if (answered) return;
+      answered = true;
+      const ok = choice === correctText;
+      btn.classList.add(ok ? "correct" : "wrong");
+      [...optionsEl.children].forEach((b) => {
+        b.disabled = true;
+        if (b.textContent === correctText) b.classList.add("correct");
+      });
+      score(ok);
+    });
     optionsEl.appendChild(btn);
   });
+}
+
+// Vergleich tolerant: Kleinschreibung, Leerzeichen, Akzente egal.
+const normalize = (s) => s.toLowerCase().trim().replace(/\s+/g, " ").normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Übungsart „Schreiben"
+function renderWrite() {
+  const form = el("form", "write");
+  const input = el("input", "write-input");
+  input.type = "text";
+  input.autocapitalize = "off";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.placeholder = "Antwort eintippen…";
+  const btn = el("button", "next", "Prüfen");
+  btn.type = "submit";
+  form.append(input, btn);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (answered) return;
+    const val = normalize(input.value);
+    if (!val) return;
+    answered = true;
+    const accepted = correctText.split("/").map(normalize);
+    const ok = accepted.includes(val);
+    input.disabled = true;
+    input.classList.add(ok ? "correct" : "wrong");
+    btn.hidden = true;
+    score(ok);
+  });
+  optionsEl.appendChild(form);
+  input.focus();
+}
+
+// Übungsart „Karten" (umdrehen + Selbstbewertung)
+function renderCards() {
+  const flip = el("button", "next", "Karte umdrehen");
+  flip.addEventListener("click", () => {
+    feedbackEl.textContent = correctText;
+    feedbackEl.className = "feedback reveal";
+    optionsEl.innerHTML = "";
+    const good = el("button", null, "Gewusst");
+    const bad = el("button", null, "Nicht gewusst");
+    const rate = (ok, btn) => {
+      if (answered) return;
+      answered = true;
+      btn.classList.add(ok ? "correct" : "wrong");
+      good.disabled = bad.disabled = true;
+      score(ok);
+    };
+    good.addEventListener("click", () => rate(true, good));
+    bad.addEventListener("click", () => rate(false, bad));
+    optionsEl.append(good, bad);
+  });
+  optionsEl.appendChild(flip);
 }
 
 // --- Vokabel-Frage ---
@@ -191,33 +264,21 @@ function newQuestion() {
   else vocabQuestion();
 }
 
-// --- Antwort werten ---
-function choose(btn) {
-  if (answered) return;
-  answered = true;
-
-  const correct = btn.textContent === correctText;
+// --- Antwort werten (gemeinsam für alle Übungsarten) ---
+function score(ok) {
   stats.total++;
-  if (correct) {
+  if (ok) {
     stats.right++; stats.streak++;
-    btn.classList.add("correct");
     feedbackEl.textContent = "¡Correcto!";
     feedbackEl.className = "feedback ok";
-    if (currentKey && errors.has(currentKey)) { errors.delete(currentKey); saveSets(); } // gemeistert
+    if (currentKey && errors.has(currentKey)) { errors.delete(currentKey); saveSets(); }
   } else {
     stats.streak = 0;
-    btn.classList.add("wrong");
     feedbackEl.textContent = "Richtig: " + correctText;
     feedbackEl.className = "feedback bad";
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
-
-  [...optionsEl.children].forEach((b) => {
-    b.disabled = true;
-    if (b.textContent === correctText) b.classList.add("correct");
-  });
-
-  recordAnswer(currentKey, correct);
+  recordAnswer(currentKey, ok);
   saveStats();
   updateStreakBadge();
   nextBtn.hidden = false;
@@ -264,6 +325,15 @@ function setMode(m) {
 }
 $("modeVocab").addEventListener("click", () => setMode("vocab"));
 $("modeVerbs").addEventListener("click", () => setMode("verbs"));
+
+// --- Übungsart-Umschalter (Auswahl/Schreiben/Karten) ---
+function setPractice(p) {
+  practice = p;
+  localStorage.setItem("practice", p);
+  document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === p));
+  newQuestion();
+}
+document.querySelectorAll("#practiceModes .mode").forEach((b) => b.addEventListener("click", () => setPractice(b.dataset.practice)));
 
 // --- View-Wechsel (Bottom Nav) ---
 function switchView(name) {
@@ -429,6 +499,7 @@ $("modeVocab").classList.toggle("active", mode === "vocab");
 $("modeVerbs").classList.toggle("active", mode === "verbs");
 $("vocabControls").hidden = mode !== "vocab";
 $("verbControls").hidden = mode !== "verbs";
+document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === practice));
 newQuestion();
 
 // --- Service Worker (offline) ---

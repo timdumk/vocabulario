@@ -72,6 +72,8 @@ main {
   font-size: 15px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s;
 }
 .mode.active { background: var(--wine); color: #fff; }
+.submodes .mode { font-size: 13px; padding: 8px; }
+.submodes .mode.active { background: var(--mustard); color: #3a2b08; }
 
 /* --- Fokus-Banner --- */
 .banner {
@@ -146,6 +148,18 @@ main {
 .feedback { text-align: center; min-height: 22px; font-size: 15px; font-weight: 600; }
 .feedback.ok { color: var(--ok); }
 .feedback.bad { color: var(--bad); }
+.feedback.reveal { color: var(--text); font-size: 22px; font-weight: 800; }
+
+/* Schreib-Modus */
+.write { display: flex; flex-direction: column; gap: 10px; }
+.write-input {
+  background: var(--surface); color: var(--text);
+  border: 2px solid var(--line); border-radius: 12px;
+  padding: 15px; font-size: 18px; text-align: center; width: 100%;
+}
+.write-input:focus { outline: none; border-color: var(--wine); }
+.write-input.correct { border-color: var(--ok); background: var(--ok-bg); }
+.write-input.wrong { border-color: var(--bad); background: var(--bad-bg); }
 
 .next {
   background: var(--wine); color: #fff; border: none; border-radius: 12px;
