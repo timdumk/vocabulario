@@ -119,6 +119,11 @@ main {
   display: flex; align-items: center; justify-content: flex-end; gap: 10px;
 }
 .card-streak { color: var(--mustard); font-weight: 700; font-size: 15px; }
+.speak {
+  background: none; border: none; font-size: 19px; line-height: 1;
+  cursor: pointer; padding: 0; opacity: .8;
+}
+.speak:active { transform: scale(.9); }
 .mark {
   background: none; border: none; font-size: 24px; line-height: 1;
   color: var(--mustard); cursor: pointer; padding: 0;

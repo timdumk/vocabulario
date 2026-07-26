@@ -15,6 +15,9 @@ let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
 let stats = JSON.parse(localStorage.getItem("stats") || '{"right":0,"total":0,"streak":0}');
 let theme = localStorage.getItem("theme") || "light";
+let progress = JSON.parse(localStorage.getItem("progress") || "{}"); // { es: {right,wrong,box,due} }
+let srs = localStorage.getItem("srs") !== "off";                     // Spaced Repetition an (default)
+let autoSpeak = localStorage.getItem("autoSpeak") === "on";          // spanisches Wort autom. vorlesen
 
 let marked = new Set(JSON.parse(localStorage.getItem("marked") || "[]"));
 let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
@@ -22,7 +25,8 @@ let focusMode = false;
 let focusSet = new Set();
 
 let correctText = null;
-let currentKey = null;   // es-Schlüssel der aktuellen Vokabel (nur vocab)
+let currentKey = null;      // es-Schlüssel der aktuellen Vokabel (nur vocab)
+let currentSpanish = null;  // spanisches Wort zum Vorlesen (vocab: es, verben: Infinitiv)
 let answered = false;
 
 // --- DOM ---
@@ -33,6 +37,7 @@ const promptLabel = $("promptLabel");
 const wordEl = $("word");
 const nextBtn = $("nextBtn");
 const markBtn = $("markBtn");
+const speakBtn = $("speakBtn");
 
 // --- Helpers ---
 const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
@@ -53,6 +58,50 @@ function applyTheme() {
   if (meta) meta.content = theme === "dark" ? "#1b1714" : "#f4ecd9";
 }
 function vocabByKey(k) { return VOCAB.find((v) => v.es === k); }
+
+// --- Fortschritt (Leitner-Boxen 0–5) ---
+const BOX_MS = [0, 10 * 60e3, 24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 30 * 24 * 3600e3];
+function recordAnswer(key, ok) {
+  if (!key) return;
+  const p = progress[key] || { right: 0, wrong: 0, box: 0, due: 0 };
+  if (ok) { p.right++; p.box = Math.min(5, p.box + 1); }
+  else { p.wrong++; p.box = 0; }
+  p.due = Date.now() + BOX_MS[p.box];
+  progress[key] = p;
+  save("progress", progress);
+}
+// SRS-Auswahl: fällige Wörter zuerst, niedrige Boxen (schwache Vokabeln) stärker gewichtet.
+function pickWord(words) {
+  if (!srs) return rand(words);
+  const now = Date.now();
+  let pool = words.filter((w) => (progress[w.es]?.due || 0) <= now);
+  if (!pool.length) pool = words;
+  const weights = pool.map((w) => 6 - (progress[w.es]?.box || 0));
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) return pool[i]; }
+  return pool[pool.length - 1];
+}
+
+// --- Vorlesen (gratis über Browser-Sprachausgabe) ---
+function speak(text) {
+  if (!text || !("speechSynthesis" in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "es-ES";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+function maybeAutoSpeak() { if (autoSpeak) speak(currentSpanish); }
+
+// Baut eine Einstellungs-Zeile mit Umschalter (wiederverwendet für Dark/SRS/Audio).
+function toggleRow(label, isOn, onToggle) {
+  const row = el("div", "setting-row");
+  row.appendChild(el("span", null, label));
+  const sw = el("div", "switch" + (isOn ? " on" : ""));
+  sw.appendChild(el("div", "knob"));
+  sw.addEventListener("click", () => onToggle(sw.classList.toggle("on")));
+  row.appendChild(sw);
+  return row;
+}
 
 // Bis zu 3 eindeutige Distraktoren aus priorisierten Listen (ohne `correct`).
 function pickDistractors(correct, ...lists) {
@@ -105,8 +154,9 @@ function vocabPool() {
 
 function vocabQuestion() {
   const words = vocabPool();
-  const current = rand(words);
+  const current = pickWord(words);
   currentKey = current.es;
+  currentSpanish = current.es;
   const correct = vocabAns(current);
   const distractPool = (words.length >= 4 ? words : VOCAB)
     .filter((w) => vocabAns(w) !== correct)
@@ -114,6 +164,7 @@ function vocabQuestion() {
   const choices = [correct, ...pickDistractors(correct, distractPool)];
   const label = dir === "es-de" ? "Was bedeutet…" : "Wie heißt auf Spanisch…";
   render(label, vocabAsk(current), choices, correct, true);
+  maybeAutoSpeak();
 }
 
 // --- Verben-Frage ---
@@ -121,6 +172,7 @@ function verbQuestion() {
   currentKey = null;
   const pool = typeFilter === "Alle" ? VERBS : VERBS.filter((v) => v.type === typeFilter);
   const verb = rand(pool);
+  currentSpanish = verb.inf;
   const tense = tenseFilter === "Alle" ? rand(TENSES) : tenseFilter;
   const i = Math.floor(Math.random() * PERSONS.length);
   const correct = verbForm(verb, tense, i);
@@ -131,6 +183,7 @@ function verbQuestion() {
   const choices = [correct, ...pickDistractors(correct, sameTense, otherTenses, otherVerbs)];
 
   render(`${verb.inf} · ${verb.de}`, `${PERSONS[i]} · ${tense}`, choices, correct, false);
+  maybeAutoSpeak();
 }
 
 function newQuestion() {
@@ -164,10 +217,14 @@ function choose(btn) {
     if (b.textContent === correctText) b.classList.add("correct");
   });
 
+  recordAnswer(currentKey, correct);
   saveStats();
   updateStreakBadge();
   nextBtn.hidden = false;
 }
+
+// --- Vorlesen (Lautsprecher auf der Karte) ---
+speakBtn.addEventListener("click", () => speak(currentSpanish));
 
 // --- Markieren (Stern auf der Karte) ---
 markBtn.addEventListener("click", () => {
@@ -331,20 +388,22 @@ function renderSettings() {
   const box = $("settingsContent");
   box.innerHTML = "";
 
-  const rowTheme = el("div", "setting-row");
-  rowTheme.appendChild(el("span", null, "Dunkelmodus"));
-  const sw = el("div", "switch" + (theme === "dark" ? " on" : ""));
-  sw.appendChild(el("div", "knob"));
-  sw.addEventListener("click", () => {
-    theme = theme === "dark" ? "light" : "dark";
+  box.appendChild(toggleRow("Dunkelmodus", theme === "dark", (on) => {
+    theme = on ? "dark" : "light";
     localStorage.setItem("theme", theme);
     applyTheme();
-    sw.classList.toggle("on");
-  });
-  rowTheme.appendChild(sw);
-  box.appendChild(rowTheme);
+  }));
+  box.appendChild(toggleRow("Spaced Repetition", srs, (on) => {
+    srs = on;
+    localStorage.setItem("srs", on ? "on" : "off");
+  }));
+  box.appendChild(toggleRow("Automatisch vorlesen", autoSpeak, (on) => {
+    autoSpeak = on;
+    localStorage.setItem("autoSpeak", on ? "on" : "off");
+  }));
 
   const bStats = el("button", "btn secondary", "Statistik zurücksetzen");
+  bStats.style.marginTop = "10px";
   bStats.addEventListener("click", () => { stats = { right: 0, total: 0, streak: 0 }; saveStats(); updateStreakBadge(); renderSettings(); });
   box.appendChild(bStats);
 
