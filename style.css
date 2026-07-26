@@ -192,12 +192,13 @@ main {
 
 .options { display: flex; flex-direction: column; gap: 10px; }
 .options button {
-  background: var(--surface); color: var(--text);
-  border: 2px solid var(--line); border-radius: 12px;
-  padding: 15px; font-size: 17px; text-align: left; cursor: pointer;
-  transition: background .12s, border-color .12s;
+  background: var(--glass-strong); color: var(--text);
+  border: 1.5px solid var(--glass-brd); border-radius: 14px;
+  padding: 16px; font-size: 17px; text-align: left; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform .12s ease, box-shadow .12s ease, background .15s, border-color .12s;
 }
-.options button:active { transform: scale(.99); }
+.options button:active { transform: scale(.97); box-shadow: none; }
 .options button.correct { border-color: var(--ok); background: var(--ok-bg); }
 .options button.wrong { border-color: var(--bad); background: var(--bad-bg); }
 .options button:disabled { cursor: default; }
@@ -210,19 +211,22 @@ main {
 /* Schreib-Modus */
 .write { display: flex; flex-direction: column; gap: 10px; }
 .write-input {
-  background: var(--surface); color: var(--text);
-  border: 2px solid var(--line); border-radius: 12px;
+  background: var(--glass-strong); color: var(--text);
+  border: 1.5px solid var(--glass-brd); border-radius: 14px;
   padding: 15px; font-size: 18px; text-align: center; width: 100%;
+  box-shadow: var(--shadow-sm);
 }
 .write-input:focus { outline: none; border-color: var(--wine); }
 .write-input.correct { border-color: var(--ok); background: var(--ok-bg); }
 .write-input.wrong { border-color: var(--bad); background: var(--bad-bg); }
 
 .next {
-  background: var(--wine); color: #fff; border: none; border-radius: 12px;
+  background: var(--grad-accent); color: #fff; border: none; border-radius: 16px;
   padding: 16px; font-size: 17px; font-weight: 700; cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease;
 }
-.next:active { transform: scale(.99); }
+.next:active { transform: scale(.97); box-shadow: var(--shadow-sm); }
 
 /* --- Listen (Vokabeln / Fehler) --- */
 .group-title {
@@ -231,8 +235,9 @@ main {
 }
 .row {
   display: flex; align-items: center; gap: 12px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  background: var(--glass-strong); border: 1px solid var(--glass-brd); border-radius: 14px;
   padding: 12px 14px; margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
 }
 .row .es { font-weight: 700; }
 .row .de { color: var(--muted); font-size: 14px; }
@@ -247,34 +252,38 @@ main {
 
 /* Suche + eigene Vokabeln */
 .search {
-  width: 100%; background: var(--surface); color: var(--text);
-  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 15px;
+  width: 100%; background: var(--glass-strong); color: var(--text);
+  border: 1px solid var(--glass-brd); border-radius: 14px; padding: 13px 15px; font-size: 15px;
+  box-shadow: var(--shadow-sm);
 }
 .search:focus { outline: none; border-color: var(--wine); }
 .addbox {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  padding: 12px 14px; margin-top: 10px;
+  background: var(--glass-strong); border: 1px solid var(--glass-brd); border-radius: 14px;
+  padding: 12px 14px; margin-top: 10px; box-shadow: var(--shadow-sm);
 }
 .addbox summary { cursor: pointer; font-weight: 700; color: var(--wine); }
 .add-input {
-  width: 100%; background: var(--bg); color: var(--text);
-  border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; margin-top: 8px;
+  width: 100%; background: var(--glass); color: var(--text);
+  border: 1px solid var(--glass-brd); border-radius: 10px; padding: 11px 12px; font-size: 15px; margin-top: 8px;
 }
 .add-input:focus { outline: none; border-color: var(--wine); }
 .addbox .btn { margin-top: 10px; }
 
 /* --- Buttons in Views --- */
 .btn {
-  width: 100%; background: var(--wine); color: #fff; border: none;
-  border-radius: 12px; padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer;
+  width: 100%; background: var(--grad-accent); color: #fff; border: none;
+  border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform .12s ease, box-shadow .12s ease;
 }
-.btn.secondary { background: var(--surface); color: var(--wine); border: 1px solid var(--line); }
-.btn:active { transform: scale(.99); }
+.btn.secondary { background: var(--glass-strong); color: var(--wine); border: 1px solid var(--glass-brd); }
+.btn:active { transform: scale(.98); box-shadow: none; }
 
 .setting-row {
   display: flex; align-items: center; justify-content: space-between;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  background: var(--glass-strong); border: 1px solid var(--glass-brd); border-radius: 14px;
   padding: 14px; margin-bottom: 10px; font-size: 15px; font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 .setting-row .val { color: var(--muted); font-weight: 600; }
 
@@ -286,8 +295,8 @@ main {
 .stat-h:first-child { margin-top: 4px; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .stat-card {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  padding: 14px 8px; text-align: center;
+  background: var(--glass-strong); border: 1px solid var(--glass-brd); border-radius: 16px;
+  padding: 14px 8px; text-align: center; box-shadow: var(--shadow-sm);
 }
 .stat-card .val { font-size: 20px; font-weight: 800; color: var(--wine); }
 .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
@@ -332,3 +341,15 @@ main {
 }
 .switch.on { background: var(--wine); border-color: var(--wine); }
 .switch.on .knob { left: 22px; background: #fff; }
+
+/* --- Micro-Interaktionen: dezenter Drück-Effekt (Scale + Schatten) --- */
+.mode, .tab, .panel-row, .row-star, .row-del, .mark, .speak, .banner-x, .switch, .addbox summary {
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease, color .15s ease;
+}
+.mode.active { box-shadow: var(--shadow-sm); }
+.mode:active, .tab:active, .panel-row:active,
+.row-star:active, .row-del:active, .mark:active, .speak:active, .banner-x:active {
+  transform: scale(.9);
+}
+.mode:active, .panel-row:active { transform: scale(.97); }
+.panel-row:active { background: var(--glass); }
