@@ -268,9 +268,26 @@ function verbQuestion() {
   maybeAutoSpeak();
 }
 
+// --- Sonderfälle (gustar / haber) ---
+function specialQuestion() {
+  currentKey = null;
+  const sp = rand(SPECIALS);
+  currentSpanish = sp.inf;
+  const slot = rand(sp.slots);
+  const correct = slot.a;
+  const distract = sp.slots.map((s) => s.a);
+  const choices = [correct, ...pickDistractors(correct, distract)];
+  render(`${sp.inf} · ${sp.de}`, slot.ctx, choices, correct, false);
+  maybeAutoSpeak();
+}
+
 function newQuestion() {
-  if (mode === "verbs" && !focusMode) verbQuestion();
-  else vocabQuestion();
+  if (mode === "verbs" && !focusMode) {
+    if (typeFilter === "special") specialQuestion();
+    else verbQuestion();
+  } else {
+    vocabQuestion();
+  }
 }
 
 // --- Antwort werten (gemeinsam für alle Übungsarten) ---
@@ -396,8 +413,8 @@ $("tenseToggle").addEventListener("click", () => {
   $("tenseToggle").textContent = tenseFilter === "Alle" ? "Alle Zeiten" : tenseFilter;
   newQuestion();
 });
-const typeOptions = ["Alle", "regular", "irregular"];
-const typeLabel = { Alle: "Alle Verben", regular: "Regelmäßig", irregular: "Unregelmäßig" };
+const typeOptions = ["Alle", "regular", "irregular", "special"];
+const typeLabel = { Alle: "Alle Verben", regular: "Regelmäßig", irregular: "Unregelmäßig", special: "Sonderfälle" };
 $("typeToggle").addEventListener("click", () => {
   typeFilter = typeOptions[(typeOptions.indexOf(typeFilter) + 1) % typeOptions.length];
   localStorage.setItem("type", typeFilter);
