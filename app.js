@@ -13,12 +13,7 @@ function rebuildWords() {
   allCats = [...new Set(WORDS.map((w) => w.cat))];
 }
 rebuildWords();
-let selectedCats = new Set(JSON.parse(localStorage.getItem("cats") || "null") || allCats);
-// Neu hinzugekommene Kategorien automatisch aktivieren
-const knownCats = new Set(JSON.parse(localStorage.getItem("knownCats") || "[]"));
-allCats.forEach((c) => { if (!knownCats.has(c)) selectedCats.add(c); });
-localStorage.setItem("knownCats", JSON.stringify(allCats));
-localStorage.setItem("cats", JSON.stringify([...selectedCats]));
+let selectedCat = localStorage.getItem("cat") || "Alle";   // Einzelauswahl: "Alle" oder ein Kategoriename
 let listeQuery = "";
 let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
@@ -175,6 +170,48 @@ function renderMC(choices) {
 
 // Vergleich tolerant: Kleinschreibung, Leerzeichen, Akzente egal.
 const normalize = (s) => s.toLowerCase().trim().replace(/\s+/g, " ").normalize("NFD").replace(/[̀-ͯ]/g, "");
+// Artikel (DE/ES) am Anfang + Klammern entfernen — für tolerante Vokabel-Prüfung.
+const stripFluff = (s) => normalize(s)
+  .replace(/\([^)]*\)/g, " ")
+  .replace(/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|el|la|los|las|un|una|unos|unas)\s+/i, "")
+  .replace(/\s+/g, " ").trim();
+// Editierdistanz (Levenshtein) für Tippfehler-Toleranz.
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+// Prüft eine getippte Antwort tolerant. Vokabeln: Artikel/Klammern egal + Tippfehler erlaubt.
+// Verben: streng (nur bei langen Formen 1 Abweichung), damit keine falsche Personform durchrutscht.
+function writeCorrect(input, correct, isVerb) {
+  const val = normalize(input).trim();
+  if (!val) return false;
+  const variants = correct.split("/").map((s) => s.trim());
+  if (isVerb) {
+    return variants.some((v) => {
+      const nv = normalize(v);
+      const tol = nv.replace(/\s/g, "").length >= 8 ? 1 : 0;
+      return levenshtein(val, nv) <= tol;
+    });
+  }
+  const valF = stripFluff(input);
+  return variants.some((v) => {
+    for (const target of [normalize(v), stripFluff(v)]) {
+      const len = target.replace(/\s/g, "").length;
+      const tol = len < 4 ? 0 : len < 8 ? 1 : 2;
+      if (levenshtein(val, target) <= tol || levenshtein(valF, target) <= tol) return true;
+    }
+    return false;
+  });
+}
 
 // Übungsart „Schreiben"
 function renderWrite() {
@@ -191,11 +228,9 @@ function renderWrite() {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     if (answered) return;
-    const val = normalize(input.value);
-    if (!val) return;
+    if (!input.value.trim()) return;
     answered = true;
-    const accepted = correctText.split("/").map(normalize);
-    const ok = accepted.includes(val);
+    const ok = writeCorrect(input.value, correctText, mode === "verbs");
     input.disabled = true;
     input.classList.add(ok ? "correct" : "wrong");
     btn.hidden = true;
@@ -238,8 +273,7 @@ function vocabPool() {
     if (p.length) return p;
     exitFocus(); // Fokusliste leer geworden
   }
-  const cats = selectedCats.size ? selectedCats : new Set(allCats);
-  return WORDS.filter((v) => cats.has(v.cat));
+  return selectedCat === "Alle" ? WORDS : WORDS.filter((v) => v.cat === selectedCat);
 }
 
 function vocabQuestion() {
@@ -388,20 +422,21 @@ $("dirToggle").addEventListener("click", () => {
   newQuestion();
 });
 function catLabel() {
-  return selectedCats.size === 0 || selectedCats.size === allCats.length ? "Alle Themen" : `Themen · ${selectedCats.size}`;
+  return selectedCat === "Alle" ? "Alle Themen" : selectedCat;
 }
 function renderCatPanel() {
   const p = $("catPanel");
   p.innerHTML = "";
-  allCats.forEach((c) => {
-    const row = el("div", "panel-row" + (selectedCats.has(c) ? " on" : ""));
-    row.appendChild(el("span", null, c));
+  ["Alle", ...allCats].forEach((c) => {
+    const row = el("div", "panel-row" + (selectedCat === c ? " on" : ""));
+    row.appendChild(el("span", null, c === "Alle" ? "Alle Themen" : c));
     row.appendChild(el("span", "check", "✓"));
     row.addEventListener("click", () => {
-      if (selectedCats.has(c)) selectedCats.delete(c); else selectedCats.add(c);
-      save("cats", [...selectedCats]);
-      row.classList.toggle("on");
+      selectedCat = c;
+      localStorage.setItem("cat", c);
+      renderCatPanel();
       $("catBtn").textContent = catLabel();
+      $("catPanel").hidden = true;
       if (focusMode) exitFocus();
       newQuestion();
     });
@@ -475,11 +510,7 @@ function addCustom(es, de, cat) {
   customVocab.push({ es, de, cat });
   save("customVocab", customVocab);
   rebuildWords();
-  if (!selectedCats.has(cat)) { selectedCats.add(cat); save("cats", [...selectedCats]); }
-  const kc = new Set(JSON.parse(localStorage.getItem("knownCats") || "[]"));
-  kc.add(cat); localStorage.setItem("knownCats", JSON.stringify([...kc]));
   renderCatPanel();
-  $("catBtn").textContent = catLabel();
   return true;
 }
 function deleteCustom(es) {
