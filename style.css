@@ -202,6 +202,13 @@ main {
 .mark.on svg, .row-star.on svg { fill: currentColor; }
 .prompt-label { color: var(--muted); font-size: 14px; text-align: center; font-weight: 600; }
 #word { text-align: center; font-size: 32px; font-weight: 800; line-height: 1.15; word-break: break-word; }
+.qmeta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.qmeta .q-sub { color: var(--muted); font-size: 15px; font-weight: 600; width: 100%; text-align: center; }
+.qmeta .badge {
+  background: var(--grad-accent); color: #fff;
+  font-size: 14px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
 
 .options { display: flex; flex-direction: column; gap: 10px; }
 .options button {

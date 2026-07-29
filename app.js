@@ -130,20 +130,31 @@ function pickDistractors(correct, ...lists) {
 }
 
 // --- Frageaufbau (generisch) ---
-function render(labelText, wordText, choices, correct, showMark) {
+// meta = { sub, badges[] } → Untertitel (Bedeutung) + Badges (Person/Zeitform); null bei Vokabeln.
+function renderMeta(meta) {
+  const q = $("qmeta");
+  q.innerHTML = "";
+  if (!meta) { q.hidden = true; return; }
+  q.hidden = false;
+  if (meta.sub) q.appendChild(el("span", "q-sub", meta.sub));
+  (meta.badges || []).forEach((b) => q.appendChild(el("span", "badge", b)));
+}
+function setHeader(labelText, wordText, showMark, meta) {
   answered = false;
-  correctText = correct;
   feedbackEl.textContent = "";
   feedbackEl.className = "feedback";
   nextBtn.hidden = true;
   optionsEl.innerHTML = "";
   promptLabel.textContent = labelText;
   wordEl.textContent = wordText;
-
+  renderMeta(meta);
   markBtn.hidden = !showMark;
   if (showMark) { markBtn.innerHTML = ICONS.star; markBtn.classList.toggle("on", marked.has(currentKey)); }
   updateStreakBadge();
-
+}
+function render(labelText, wordText, choices, correct, showMark, meta) {
+  correctText = correct;
+  setHeader(labelText, wordText, showMark, meta);
   if (practice === "write") renderWrite();
   else if (practice === "cards") renderCards();
   else renderMC(choices);
@@ -287,7 +298,7 @@ function vocabQuestion() {
     .map(vocabAns);
   const choices = [correct, ...pickDistractors(correct, distractPool)];
   const label = dir === "es-de" ? "Was bedeutet…" : "Wie heißt auf Spanisch…";
-  render(label, vocabAsk(current), choices, correct, true);
+  render(label, vocabAsk(current), choices, correct, true, null);
   maybeAutoSpeak();
 }
 
@@ -306,7 +317,7 @@ function verbQuestion() {
   const otherVerbs = pool.flatMap((v) => PERSONS.map((_, j) => verbForm(v, tense, j)));
   const choices = [correct, ...pickDistractors(correct, sameTense, otherTenses, otherVerbs)];
 
-  render(`${verb.inf} · ${verb.de}`, `${PERSONS[i]} · ${tense}`, choices, correct, false);
+  render("Konjugiere", verb.inf, choices, correct, false, { sub: verb.de, badges: [PERSONS[i], tense] });
   maybeAutoSpeak();
 }
 
@@ -319,7 +330,7 @@ function specialQuestion() {
   const correct = slot.a;
   const distract = sp.slots.map((s) => s.a);
   const choices = [correct, ...pickDistractors(correct, distract)];
-  render(`${sp.inf} · ${sp.de}`, slot.ctx, choices, correct, false);
+  render("Konjugiere", sp.inf, choices, correct, false, { sub: sp.de, badges: [slot.ctx] });
   maybeAutoSpeak();
 }
 
