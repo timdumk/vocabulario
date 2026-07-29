@@ -36,6 +36,12 @@ let daily = Object.assign(
   JSON.parse(localStorage.getItem("daily") || "{}")
 );
 
+// Laufende Übungsrunde. null = keine Übung aktiv (Start-Sheet oder Home).
+// { total, answered, right, endless }  — total 0 bedeutet Endlos-Modus.
+let session = null;
+let sessionLen = Number(localStorage.getItem("len") ?? 10);   // 0 = endlos
+let shownMilestones = new Set(JSON.parse(localStorage.getItem("milestones") || "[]"));
+
 let correctText = null;
 let currentKey = null;      // es-Schlüssel der aktuellen Vokabel (nur vocab)
 let currentSpanish = null;  // spanisches Wort zum Vorlesen (vocab: es, verben: Infinitiv)
@@ -193,6 +199,11 @@ function setHeader(labelText, wordText, showMark, meta) {
   markBtn.hidden = !showMark;
   if (showMark) { markBtn.innerHTML = ICONS.star; markBtn.classList.toggle("on", marked.has(currentKey)); }
   updateStreakBadge();
+  // Karte federnd einblenden (Slide + Fade); Animation neu starten erzwingen.
+  const card = $("card");
+  card.classList.remove("card-in");
+  void card.offsetWidth;
+  card.classList.add("card-in");
 }
 function render(labelText, wordText, choices, correct, showMark, meta) {
   correctText = correct;
@@ -376,6 +387,9 @@ function specialQuestion() {
   maybeAutoSpeak();
 }
 
+// Filter im Start-Sheet umgestellt: nur neu zeichnen, wenn eine Runde läuft.
+function refreshQuestion() { if (session) newQuestion(); }
+
 function newQuestion() {
   if (mode === "verbs" && !focusMode) {
     if (typeFilter === "special") specialQuestion();
@@ -445,9 +459,18 @@ function score(ok) {
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
   recordAnswer(currentKey, ok);
-  touchDay();
+  const goalJustReached = touchDay();
   saveStats();
   updateStreakBadge();
+
+  if (session) {
+    session.answered++;
+    if (ok) session.right++;
+    updateProgress();
+    const last = !session.endless && session.answered >= session.total;
+    nextBtn.textContent = last ? "Ergebnis ansehen" : "Weiter →";
+  }
+  checkMilestones(goalJustReached);
   nextBtn.hidden = false;
 }
 
@@ -470,13 +493,13 @@ function startFocus() {
   focusMode = true;
   $("focusBanner").hidden = false;
   $("focusText").textContent = `Fokus: ${keys.length} markierte / Fehler`;
-  startPractice();
+  startSession();
 }
 function exitFocus() {
   focusMode = false;
   $("focusBanner").hidden = true;
 }
-$("focusExit").addEventListener("click", () => { exitFocus(); newQuestion(); });
+$("focusExit").addEventListener("click", () => { exitFocus(); refreshQuestion(); });
 
 // --- Modus-Umschalter ---
 function setMode(m) {
@@ -488,7 +511,7 @@ function setMode(m) {
   $("verbControls").hidden = mode !== "verbs";
   if (mode === "verbs" && focusMode) { exitFocus(); }
   syncPractice();
-  newQuestion();
+  refreshQuestion();
 }
 $("modeVocab").addEventListener("click", () => setMode("vocab"));
 $("modeVerbs").addEventListener("click", () => setMode("verbs"));
@@ -512,7 +535,7 @@ function setPractice(p) {
   practice = p;
   localStorage.setItem("practice", p);
   document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === p));
-  newQuestion();
+  refreshQuestion();
 }
 document.querySelectorAll("#practiceModes .mode").forEach((b) => b.addEventListener("click", () => setPractice(b.dataset.practice)));
 
@@ -528,26 +551,167 @@ function switchView(name) {
 }
 document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
-// --- Übung: eigener Vollbild-Flow (Tab-Bar ausgeblendet) ---
-function startPractice() {
+// ============================================================
+//  Übung: eigener Vollbild-Flow (Tab-Bar ausgeblendet)
+// ============================================================
+
+// --- Start-Sheet: Modus, Übungsart, Filter und Rundenlänge wählen ---
+function openStartSheet() {
+  $("startSheet").hidden = false;
+  $("catPanel").hidden = true;
+}
+function closeStartSheet() { $("startSheet").hidden = true; }
+$("sheetCancel").addEventListener("click", closeStartSheet);
+$("sheetStart").addEventListener("click", () => { closeStartSheet(); startSession(); });
+$("startSheet").addEventListener("click", (e) => { if (e.target === $("startSheet")) closeStartSheet(); });
+
+document.querySelectorAll("#lengthModes .mode").forEach((b) => {
+  b.classList.toggle("active", Number(b.dataset.len) === sessionLen);
+  b.addEventListener("click", () => {
+    sessionLen = Number(b.dataset.len);
+    localStorage.setItem("len", sessionLen);
+    document.querySelectorAll("#lengthModes .mode").forEach((x) => x.classList.toggle("active", x === b));
+  });
+});
+
+// --- Runde starten / beenden ---
+function startSession() {
+  session = { total: sessionLen, answered: 0, right: 0, endless: sessionLen === 0 };
   $("practice").hidden = false;
+  $("summary").hidden = true;
+  $("practiceBody").hidden = false;
   document.body.classList.add("in-practice");
+  updateProgress();
   newQuestion();
 }
 function closePractice() {
+  session = null;
   $("practice").hidden = true;
+  $("summary").hidden = true;
+  $("practiceBody").hidden = false;
   document.body.classList.remove("in-practice");
   if (focusMode) exitFocus();
   renderHome();
 }
-$("practiceExit").addEventListener("click", closePractice);
+// Vor dem Verlassen nachfragen, sobald die Runde wirklich begonnen hat.
+$("practiceExit").addEventListener("click", () => {
+  if (session && !session.endless && session.answered >= 2 && session.answered < session.total) {
+    $("confirmExit").hidden = false;
+  } else {
+    closePractice();
+  }
+});
+$("confirmNo").addEventListener("click", () => { $("confirmExit").hidden = true; });
+$("confirmYes").addEventListener("click", () => { $("confirmExit").hidden = true; closePractice(); });
+
+// --- Fortschrittsanzeige oben ---
+function updateProgress() {
+  if (!session) return;
+  const bar = $("progressBar"), fill = $("progressFill"), cnt = $("progressCount");
+  if (session.endless) {
+    bar.hidden = true;
+    cnt.textContent = session.answered ? `${session.answered} geübt` : "Endlos";
+  } else {
+    bar.hidden = false;
+    const done = Math.min(session.answered, session.total);
+    fill.style.width = (done / session.total) * 100 + "%";
+    cnt.textContent = `${Math.min(done + 1, session.total)} / ${session.total}`;
+  }
+}
+
+// Nächste Frage — oder Rundenende.
+function advance() {
+  if (session && !session.endless && session.answered >= session.total) { showSummary(); return; }
+  newQuestion();
+  updateProgress();
+}
+
+// --- Zusammenfassung nach Rundenende ---
+function showSummary() {
+  const s = session;
+  const quote = s.answered ? Math.round((s.right / s.answered) * 100) : 0;
+  const msg = quote >= 90 ? "¡Excelente!" : quote >= 70 ? "¡Muy bien!" : quote >= 50 ? "Solide Runde." : "Dranbleiben.";
+
+  $("practiceBody").hidden = true;
+  $("progressBar").hidden = false;
+  $("progressFill").style.width = "100%";
+  $("progressCount").textContent = `${s.total} / ${s.total}`;
+
+  const box = $("summary");
+  box.hidden = false;
+  box.innerHTML = "";
+
+  const card = el("div", "summary-card");
+  card.appendChild(el("p", "summary-msg", msg));
+  card.appendChild(el("div", "summary-quote", quote + "%"));
+  card.appendChild(el("p", "summary-sub", "Trefferquote"));
+
+  const grid = el("div", "summary-grid");
+  grid.append(
+    summaryStat(String(s.answered), "geübt"),
+    summaryStat(String(s.right), "richtig"),
+    summaryStat(String(s.answered - s.right), "falsch"),
+  );
+  card.appendChild(grid);
+  box.appendChild(card);
+
+  const again = el("button", "btn", "Nochmal");
+  again.addEventListener("click", startSession);
+  const done = el("button", "btn secondary", "Fertig");
+  done.addEventListener("click", closePractice);
+  box.append(again, done);
+}
+function summaryStat(val, lbl) {
+  const c = el("div", "summary-stat");
+  c.appendChild(el("div", "val", val));
+  c.appendChild(el("div", "lbl", lbl));
+  return c;
+}
+
+// --- Meilensteine: kurzer Badge-Pop, kein Vollbild-Konfetti ---
+let milestoneTimer = null;
+function showMilestone(text) {
+  const m = $("milestone");
+  m.innerHTML = "";
+  m.insertAdjacentHTML("beforeend", ICONS.check);
+  m.appendChild(el("span", null, text));
+  m.hidden = false;
+  m.classList.remove("show");
+  void m.offsetWidth;              // Neustart der Animation erzwingen
+  m.classList.add("show");
+  clearTimeout(milestoneTimer);
+  milestoneTimer = setTimeout(() => {
+    m.classList.remove("show");
+    setTimeout(() => { m.hidden = true; }, 300);
+  }, 2400);
+}
+// Jeder Meilenstein wird genau einmal gefeiert.
+function markMilestone(id) {
+  if (shownMilestones.has(id)) return false;
+  shownMilestones.add(id);
+  save("milestones", [...shownMilestones]);
+  return true;
+}
+function checkMilestones(goalJustReached) {
+  if (goalJustReached) {
+    showMilestone(markMilestone("goal-first") ? "Erstes Tagesziel geschafft" : "Tagesziel erreicht");
+    return;
+  }
+  for (const n of [7, 30, 100]) {
+    if (daily.streak >= n && markMilestone("streak-" + n)) { showMilestone(`${n} Tage in Folge`); return; }
+  }
+  const learned = Object.keys(progress).length;
+  for (const n of [50, 100, 200]) {
+    if (learned >= n && markMilestone("words-" + n)) { showMilestone(`${n} Vokabeln geübt`); return; }
+  }
+}
 
 // --- Vokabel-Controls ---
 $("dirToggle").addEventListener("click", () => {
   dir = dir === "es-de" ? "de-es" : "es-de";
   localStorage.setItem("dir", dir);
   $("dirToggle").textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
-  newQuestion();
+  refreshQuestion();
 });
 function catLabel() {
   return selectedCat === "Alle" ? "Alle Themen" : selectedCat;
@@ -566,7 +730,7 @@ function renderCatPanel() {
       $("catBtn").textContent = catLabel();
       $("catPanel").hidden = true;
       if (focusMode) exitFocus();
-      newQuestion();
+      refreshQuestion();
     });
     p.appendChild(row);
   });
@@ -582,7 +746,7 @@ $("tenseToggle").addEventListener("click", () => {
   tenseFilter = tenseOptions[(tenseOptions.indexOf(tenseFilter) + 1) % tenseOptions.length];
   localStorage.setItem("tense", tenseFilter);
   $("tenseToggle").textContent = tenseFilter === "Alle" ? "Alle Zeiten" : tenseFilter;
-  newQuestion();
+  refreshQuestion();
 });
 const typeOptions = ["Alle", "regular", "irregular", "special"];
 const typeLabel = { Alle: "Alle Verben", regular: "Regelmäßig", irregular: "Unregelmäßig", special: "Sonderfälle" };
@@ -590,10 +754,10 @@ $("typeToggle").addEventListener("click", () => {
   typeFilter = typeOptions[(typeOptions.indexOf(typeFilter) + 1) % typeOptions.length];
   localStorage.setItem("type", typeFilter);
   $("typeToggle").textContent = typeLabel[typeFilter];
-  newQuestion();
+  refreshQuestion();
 });
 
-nextBtn.addEventListener("click", newQuestion);
+nextBtn.addEventListener("click", advance);
 
 // --- Liste: Suche + eigene Vokabeln ---
 $("listeSearch").addEventListener("input", (e) => { listeQuery = e.target.value; renderListe(); });
@@ -675,7 +839,7 @@ function renderHome() {
   const cta = el("button", "cta");
   cta.appendChild(el("span", "cta-main", daily.count ? "Weiter lernen" : "Lernen starten"));
   cta.appendChild(el("span", "cta-sub", ctaSubLabel()));
-  cta.addEventListener("click", () => startPractice());
+  cta.addEventListener("click", openStartSheet);
   box.appendChild(cta);
 
   // Kurzüberblick: die zuletzt falsch beantworteten Vokabeln

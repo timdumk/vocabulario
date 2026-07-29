@@ -73,36 +73,14 @@
       <button id="practiceExit" class="icon-btn" aria-label="Übung beenden">
         <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
       </button>
-      <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
       <span class="progress-count" id="progressCount"></span>
     </div>
 
     <div class="practice-body" id="practiceBody">
-      <div class="modes">
-        <button id="modeVocab" class="mode active">Vokabeln</button>
-        <button id="modeVerbs" class="mode">Verben</button>
-      </div>
-
-      <div class="modes submodes" id="practiceModes">
-        <button class="mode active" data-practice="mc">Auswahl</button>
-        <button class="mode" data-practice="write">Schreiben</button>
-        <button class="mode" data-practice="cards">Karten</button>
-      </div>
-
       <div id="focusBanner" class="banner" hidden>
         <span id="focusText">Fokus: markierte / Fehler</span>
         <button id="focusExit" class="banner-x" aria-label="Fokus beenden">✕</button>
-      </div>
-
-      <div class="controls" id="vocabControls">
-        <button id="dirToggle" class="chip">🇪🇸 → 🇩🇪</button>
-        <button id="catBtn" class="chip">Alle Themen</button>
-      </div>
-      <div id="catPanel" class="panel" hidden></div>
-
-      <div class="controls" id="verbControls" hidden>
-        <button id="tenseToggle" class="chip">Alle Zeiten</button>
-        <button id="typeToggle" class="chip">Alle Verben</button>
       </div>
 
       <section id="card" class="card">
@@ -124,6 +102,59 @@
     <!-- Zusammenfassung nach Rundenende -->
     <div class="summary" id="summary" hidden></div>
   </div>
+
+  <!-- ============ START-SHEET: Übung einrichten ============ -->
+  <div class="sheet-back" id="startSheet" hidden>
+    <div class="sheet">
+      <div class="sheet-grab"></div>
+      <h2 class="sheet-title">Übung einrichten</h2>
+
+      <div class="modes">
+        <button id="modeVocab" class="mode active">Vokabeln</button>
+        <button id="modeVerbs" class="mode">Verben</button>
+      </div>
+
+      <div class="modes submodes" id="practiceModes">
+        <button class="mode active" data-practice="mc">Auswahl</button>
+        <button class="mode" data-practice="write">Schreiben</button>
+        <button class="mode" data-practice="cards">Karten</button>
+      </div>
+
+      <div class="controls" id="vocabControls">
+        <button id="dirToggle" class="chip">🇪🇸 → 🇩🇪</button>
+        <button id="catBtn" class="chip">Alle Themen</button>
+      </div>
+      <div id="catPanel" class="panel" hidden></div>
+
+      <div class="controls" id="verbControls" hidden>
+        <button id="tenseToggle" class="chip">Alle Zeiten</button>
+        <button id="typeToggle" class="chip">Alle Verben</button>
+      </div>
+
+      <div class="modes lengths" id="lengthModes">
+        <button class="mode active" data-len="10">10 Fragen</button>
+        <button class="mode" data-len="0">Endlos</button>
+      </div>
+
+      <button id="sheetStart" class="btn">Los geht’s</button>
+      <button id="sheetCancel" class="btn secondary">Abbrechen</button>
+    </div>
+  </div>
+
+  <!-- ============ Bestätigung: Übung verlassen ============ -->
+  <div class="dialog-back" id="confirmExit" hidden>
+    <div class="dialog">
+      <p class="dialog-title">Übung beenden?</p>
+      <p class="dialog-text">Der Fortschritt dieser Runde wird nicht gewertet.</p>
+      <div class="dialog-actions">
+        <button class="btn secondary" id="confirmNo">Weiter üben</button>
+        <button class="btn" id="confirmYes">Beenden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Meilenstein-Badge ============ -->
+  <div class="milestone" id="milestone" hidden></div>
 
   <script src="vocab.js"></script>
   <script src="verbs.js"></script>
