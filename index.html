@@ -14,13 +14,70 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Vocabulario</h1>
-  </header>
-
   <main>
-    <!-- ============ ÜBEN ============ -->
-    <section class="view" id="view-uben">
+    <!-- ============ HOME ============ -->
+    <section class="view" id="view-home">
+      <div id="homeContent"></div>
+    </section>
+
+    <!-- ============ LISTE (alle Vokabeln) ============ -->
+    <section class="view" id="view-liste" hidden>
+      <h2 class="view-title">Alle Vokabeln</h2>
+      <input id="listeSearch" class="search" type="search" placeholder="Suchen… (Spanisch oder Deutsch)" autocomplete="off">
+      <details class="addbox">
+        <summary>+ Eigene Vokabel</summary>
+        <input id="addEs" class="add-input" placeholder="Spanisch" autocomplete="off">
+        <input id="addDe" class="add-input" placeholder="Deutsch" autocomplete="off">
+        <input id="addCat" class="add-input" placeholder="Thema (optional, sonst „Eigene“)" autocomplete="off">
+        <button id="addBtn" class="btn">Hinzufügen</button>
+      </details>
+      <div id="listeContent"></div>
+    </section>
+
+    <!-- ============ FEHLER / MARKIERT ============ -->
+    <section class="view" id="view-fehler" hidden>
+      <h2 class="view-title">Markiert &amp; Fehler</h2>
+      <div id="fehlerContent"></div>
+    </section>
+
+    <!-- ============ EINSTELLUNGEN ============ -->
+    <section class="view" id="view-settings" hidden>
+      <h2 class="view-title">Mehr</h2>
+      <div id="settingsContent"></div>
+    </section>
+  </main>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="tabbar">
+    <button class="tab active" data-view="home">
+      <svg viewBox="0 0 24 24"><path d="M4 11.2 12 4l8 7.2"/><path d="M6.2 10v9.2h11.6V10"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="tab" data-view="liste">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="7" x2="20" y2="7"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="17" x2="20" y2="17"/><circle cx="4" cy="7" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="4" cy="17" r="1.3"/></svg>
+      <span>Vokabeln</span>
+    </button>
+    <button class="tab" data-view="fehler">
+      <svg viewBox="0 0 24 24"><polygon points="12,3 14.6,9 21,9.5 16,13.8 17.6,20 12,16.5 6.4,20 8,13.8 3,9.5 9.4,9"/></svg>
+      <span>Fehler</span>
+    </button>
+    <button class="tab" data-view="settings">
+      <svg viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.5"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.5"/></svg>
+      <span>Mehr</span>
+    </button>
+  </nav>
+
+  <!-- ============ ÜBUNG: eigener Vollbild-Flow (ohne Tab-Bar) ============ -->
+  <div class="practice" id="practice" hidden>
+    <div class="practice-top">
+      <button id="practiceExit" class="icon-btn" aria-label="Übung beenden">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-count" id="progressCount"></span>
+    </div>
+
+    <div class="practice-body" id="practiceBody">
       <div class="modes">
         <button id="modeVocab" class="mode active">Vokabeln</button>
         <button id="modeVerbs" class="mode">Verben</button>
@@ -62,54 +119,11 @@
       </section>
 
       <button id="nextBtn" class="next" hidden>Weiter →</button>
-    </section>
+    </div>
 
-    <!-- ============ LISTE (alle Vokabeln) ============ -->
-    <section class="view" id="view-liste" hidden>
-      <h2 class="view-title">Alle Vokabeln</h2>
-      <input id="listeSearch" class="search" type="search" placeholder="Suchen… (Spanisch oder Deutsch)" autocomplete="off">
-      <details class="addbox">
-        <summary>+ Eigene Vokabel</summary>
-        <input id="addEs" class="add-input" placeholder="Spanisch" autocomplete="off">
-        <input id="addDe" class="add-input" placeholder="Deutsch" autocomplete="off">
-        <input id="addCat" class="add-input" placeholder="Thema (optional, sonst „Eigene“)" autocomplete="off">
-        <button id="addBtn" class="btn">Hinzufügen</button>
-      </details>
-      <div id="listeContent"></div>
-    </section>
-
-    <!-- ============ FEHLER / MARKIERT ============ -->
-    <section class="view" id="view-fehler" hidden>
-      <h2 class="view-title">Markiert &amp; Fehler</h2>
-      <div id="fehlerContent"></div>
-    </section>
-
-    <!-- ============ EINSTELLUNGEN ============ -->
-    <section class="view" id="view-settings" hidden>
-      <h2 class="view-title">Mehr</h2>
-      <div id="settingsContent"></div>
-    </section>
-  </main>
-
-  <!-- ============ BOTTOM NAV ============ -->
-  <nav class="tabbar">
-    <button class="tab active" data-view="uben">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-      <span>Üben</span>
-    </button>
-    <button class="tab" data-view="liste">
-      <svg viewBox="0 0 24 24"><line x1="8" y1="7" x2="20" y2="7"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="17" x2="20" y2="17"/><circle cx="4" cy="7" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="4" cy="17" r="1.3"/></svg>
-      <span>Vokabeln</span>
-    </button>
-    <button class="tab" data-view="fehler">
-      <svg viewBox="0 0 24 24"><polygon points="12,3 14.6,9 21,9.5 16,13.8 17.6,20 12,16.5 6.4,20 8,13.8 3,9.5 9.4,9"/></svg>
-      <span>Fehler</span>
-    </button>
-    <button class="tab" data-view="settings">
-      <svg viewBox="0 0 24 24"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.5"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.5"/></svg>
-      <span>Mehr</span>
-    </button>
-  </nav>
+    <!-- Zusammenfassung nach Rundenende -->
+    <div class="summary" id="summary" hidden></div>
+  </div>
 
   <script src="vocab.js"></script>
   <script src="verbs.js"></script>

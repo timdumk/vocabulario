@@ -1,7 +1,7 @@
 "use strict";
 
 // --- State ---
-let view = "uben";                                  // uben | liste | fehler | settings
+let view = "home";                                  // home | liste | fehler | settings
 let mode = localStorage.getItem("mode") || "vocab"; // vocab | verbs
 let dir = localStorage.getItem("dir") || "es-de";   // es-de | de-es
 // Wortliste = Basis (vocab.js) + eigene Vokabeln; zur Laufzeit zusammengesetzt.
@@ -29,6 +29,13 @@ let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
 let focusMode = false;
 let focusSet = new Set();
 
+// Tagesfortschritt: Tagesziel + Tages-Streak (Tage in Folge mit erreichtem Ziel).
+// Unabhängig von stats.streak — das zählt richtige Antworten in Folge.
+let daily = Object.assign(
+  { date: "", count: 0, goal: 20, streak: 0, lastGoalDate: "", best: 0 },
+  JSON.parse(localStorage.getItem("daily") || "{}")
+);
+
 let correctText = null;
 let currentKey = null;      // es-Schlüssel der aktuellen Vokabel (nur vocab)
 let currentSpanish = null;  // spanisches Wort zum Vorlesen (vocab: es, verben: Infinitiv)
@@ -55,6 +62,9 @@ const ICONS = {
   star: '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.05 3.95.96 5.55L12 16.9 6.03 19l.96-5.55L2.9 9.5l5.6-.8z"/></svg>',
   flame: '<svg viewBox="0 0 24 24"><path d="M12 3c.8 2.8-1.8 3.9-1.8 6.6a1.8 1.8 0 0 0 3.6.2c1.8 1.7 3 3.2 3 5.6a4.8 4.8 0 0 1-9.6 0C7.2 11 10.5 9.6 12 3z"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.8h6V7M6.5 7l.9 12.2h9.2L17.5 7"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>',
+  alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><line x1="12" y1="7.6" x2="12" y2="12.8"/><circle cx="12" cy="16.2" r=".9" fill="currentColor" stroke="none"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.6 4.5L19 7.5"/></svg>',
 };
 
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -68,9 +78,41 @@ function updateStreakBadge() {
 function applyTheme() {
   document.body.classList.toggle("dark", theme === "dark");
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === "dark" ? "#1b1714" : "#f4ecd9";
+  if (meta) meta.content = theme === "dark" ? "#16121a" : "#f4ecd9";
 }
 function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
+
+// --- Tagesfortschritt ---
+// Lokales Datum als YYYY-MM-DD (nicht UTC — sonst springt der Tag abends um).
+function dayKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// Tageswechsel abfangen: Zähler zurücksetzen, Streak nur halten, wenn das Ziel
+// heute oder gestern erreicht wurde.
+function rollDay() {
+  const today = dayKey();
+  if (daily.date === today) return;
+  daily.date = today;
+  daily.count = 0;
+  const yesterday = dayKey(new Date(Date.now() - 864e5));
+  if (daily.lastGoalDate !== today && daily.lastGoalDate !== yesterday) daily.streak = 0;
+  save("daily", daily);
+}
+// Eine beantwortete Frage zählen. Gibt true zurück, wenn das Tagesziel gerade
+// erst erreicht wurde (für die Meilenstein-Meldung).
+function touchDay() {
+  rollDay();
+  daily.count++;
+  let reached = false;
+  if (daily.count >= daily.goal && daily.lastGoalDate !== daily.date) {
+    daily.streak++;
+    daily.lastGoalDate = daily.date;
+    if (daily.streak > daily.best) daily.best = daily.streak;
+    reached = true;
+  }
+  save("daily", daily);
+  return reached;
+}
 
 // --- Fortschritt (Leitner-Boxen 0–5) ---
 const BOX_MS = [0, 10 * 60e3, 24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 30 * 24 * 3600e3];
@@ -403,6 +445,7 @@ function score(ok) {
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
   recordAnswer(currentKey, ok);
+  touchDay();
   saveStats();
   updateStreakBadge();
   nextBtn.hidden = false;
@@ -427,8 +470,7 @@ function startFocus() {
   focusMode = true;
   $("focusBanner").hidden = false;
   $("focusText").textContent = `Fokus: ${keys.length} markierte / Fehler`;
-  switchView("uben");
-  vocabQuestion();
+  startPractice();
 }
 function exitFocus() {
   focusMode = false;
@@ -477,13 +519,28 @@ document.querySelectorAll("#practiceModes .mode").forEach((b) => b.addEventListe
 // --- View-Wechsel (Bottom Nav) ---
 function switchView(name) {
   view = name;
-  ["uben", "liste", "fehler", "settings"].forEach((v) => { $("view-" + v).hidden = v !== name; });
+  ["home", "liste", "fehler", "settings"].forEach((v) => { $("view-" + v).hidden = v !== name; });
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
+  if (name === "home") renderHome();
   if (name === "liste") renderListe();
   if (name === "fehler") renderFehler();
   if (name === "settings") renderSettings();
 }
 document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
+
+// --- Übung: eigener Vollbild-Flow (Tab-Bar ausgeblendet) ---
+function startPractice() {
+  $("practice").hidden = false;
+  document.body.classList.add("in-practice");
+  newQuestion();
+}
+function closePractice() {
+  $("practice").hidden = true;
+  document.body.classList.remove("in-practice");
+  if (focusMode) exitFocus();
+  renderHome();
+}
+$("practiceExit").addEventListener("click", closePractice);
 
 // --- Vokabel-Controls ---
 $("dirToggle").addEventListener("click", () => {
@@ -547,6 +604,104 @@ $("addBtn").addEventListener("click", () => {
     renderListe();
   }
 });
+
+// ============================================================
+//  View: Home
+// ============================================================
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 11) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+const PRACTICE_LABEL = { mc: "Auswahl", write: "Schreiben", cards: "Karten", table: "Tabelle" };
+function ctaSubLabel() {
+  const what = mode === "verbs" ? "Verben" : (selectedCat === "Alle" ? "Vokabeln" : selectedCat);
+  return `${what} · ${PRACTICE_LABEL[practice] || ""}`;
+}
+
+// Fortschrittsring: SVG-Kreis, Füllstand über stroke-dashoffset.
+function goalRing(pct) {
+  const R = 34, C = 2 * Math.PI * R;
+  const wrap = el("div", "ring");
+  wrap.innerHTML = `
+    <svg viewBox="0 0 80 80" aria-hidden="true">
+      <defs>
+        <linearGradient id="ringGrad" x1="0" y1="1" x2="1" y2="0">
+          <stop class="ring-a" offset="0"></stop>
+          <stop class="ring-b" offset="1"></stop>
+        </linearGradient>
+      </defs>
+      <circle class="ring-track" cx="40" cy="40" r="${R}"></circle>
+      <circle class="ring-fill" cx="40" cy="40" r="${R}"
+              stroke-dasharray="${C.toFixed(1)}"
+              stroke-dashoffset="${(C * (1 - pct)).toFixed(1)}"></circle>
+    </svg>`;
+  return wrap;
+}
+
+function renderHome() {
+  rollDay();
+  const box = $("homeContent");
+  box.innerHTML = "";
+
+  const head = el("div", "home-head");
+  head.appendChild(el("span", "home-hello", greeting()));
+  head.appendChild(el("span", "home-date",
+    new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })));
+  box.appendChild(head);
+
+  const grid = el("div", "home-grid");
+
+  const streakTile = el("div", "tile");
+  streakTile.appendChild(el("div", "tile-num", String(daily.streak)));
+  const sl = el("div", "tile-lbl streak-lbl");
+  sl.innerHTML = ICONS.flame;
+  sl.appendChild(el("span", null, daily.streak === 1 ? "Tag in Folge" : "Tage in Folge"));
+  streakTile.appendChild(sl);
+  grid.appendChild(streakTile);
+
+  const pct = daily.goal ? Math.min(1, daily.count / daily.goal) : 0;
+  const goalTile = el("div", "tile");
+  const ring = goalRing(pct);
+  const center = el("div", "ring-center");
+  center.appendChild(el("span", "ring-num", String(daily.count)));
+  center.appendChild(el("span", "ring-goal", "/ " + daily.goal));
+  ring.appendChild(center);
+  goalTile.append(ring, el("div", "tile-lbl", "Tagesziel"));
+  grid.appendChild(goalTile);
+  box.appendChild(grid);
+
+  const cta = el("button", "cta");
+  cta.appendChild(el("span", "cta-main", daily.count ? "Weiter lernen" : "Lernen starten"));
+  cta.appendChild(el("span", "cta-sub", ctaSubLabel()));
+  cta.addEventListener("click", () => startPractice());
+  box.appendChild(cta);
+
+  // Kurzüberblick: die zuletzt falsch beantworteten Vokabeln
+  const recent = [...errors].slice(-3).reverse().map(vocabByKey).filter(Boolean);
+  if (recent.length) {
+    const sec = el("div", "home-sec");
+    sec.appendChild(el("span", null, "Zuletzt falsch"));
+    const more = el("button", "home-more");
+    more.append(el("span", null, "Alle"));
+    more.insertAdjacentHTML("beforeend", ICONS.chevron);
+    more.addEventListener("click", () => switchView("fehler"));
+    sec.appendChild(more);
+    box.appendChild(sec);
+
+    recent.forEach((w) => {
+      const row = el("div", "mini-row");
+      const dot = el("span", "status-dot bad");
+      dot.innerHTML = ICONS.alert;
+      const txt = el("div", "txt");
+      txt.appendChild(el("span", "es", w.es));
+      txt.appendChild(el("span", "de", w.de));
+      row.append(dot, txt);
+      box.appendChild(row);
+    });
+  }
+}
 
 // --- View: Alle Vokabeln ---
 function vocabRow(w, opts = {}) {
@@ -735,7 +890,8 @@ $("modeVerbs").classList.toggle("active", mode === "verbs");
 $("vocabControls").hidden = mode !== "vocab";
 $("verbControls").hidden = mode !== "verbs";
 syncPractice();
-newQuestion();
+rollDay();
+renderHome();
 
 // iOS: aktiviert :active-Drück-Effekte beim Antippen (sonst ignoriert Safari sie bei Touch)
 document.addEventListener("touchstart", () => {}, { passive: true });
