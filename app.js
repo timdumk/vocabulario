@@ -74,6 +74,7 @@ const ICONS = {
   chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>',
   alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><line x1="12" y1="7.6" x2="12" y2="12.8"/><circle cx="12" cy="16.2" r=".9" fill="currentColor" stroke="none"/></svg>',
   check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.6 4.5L19 7.5"/></svg>',
+  cycle: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.2V8h-3.8"/></svg>',
 };
 
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -93,6 +94,14 @@ function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
 
 // Systemeinstellung „Bewegung reduzieren" respektieren: dann Endwerte direkt setzen.
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// CSS-Animation neu starten. Nötig, weil eine abgelaufene Animation nicht
+// erneut läuft, wenn ein Element nur per `hidden` aus- und wieder eingeblendet wird.
+function replayAnim(node, cls = "anim-in") {
+  node.classList.remove(cls);
+  void node.offsetWidth;
+  node.classList.add(cls);
+}
+
 // Endwert erst im nächsten Frame setzen, damit die CSS-Transition greift.
 function growTo(setFinal, setStart) {
   if (reduceMotion()) { setFinal(); return; }
@@ -554,14 +563,18 @@ markBtn.addEventListener("click", () => {
 });
 
 // --- Fokus-Üben (markierte + Fehler) ---
-function startFocus() {
-  const keys = [...new Set([...marked, ...errors])];
+// Übt gezielt eine feste Wortliste. vocabPool() respektiert focusSet bereits.
+function startFocusWith(keys, label) {
+  keys = [...new Set(keys)].filter(vocabByKey);
   if (!keys.length) return;
   focusSet = new Set(keys);
   focusMode = true;
   $("focusBanner").hidden = false;
-  $("focusText").textContent = `Fokus: ${keys.length} markierte / Fehler`;
+  $("focusText").textContent = `Fokus: ${keys.length} ${label}`;
   startSession();
+}
+function startFocus() {
+  startFocusWith([...marked, ...errors], "markierte / Fehler");
 }
 function exitFocus() {
   focusMode = false;
@@ -608,10 +621,16 @@ function setPractice(p) {
 document.querySelectorAll("#practiceModes .mode").forEach((b) => b.addEventListener("click", () => setPractice(b.dataset.practice)));
 
 // --- View-Wechsel (Bottom Nav) ---
+const VIEWS = ["home", "liste", "fehler", "settings"];
+
 function switchView(name) {
   view = name;
-  ["home", "liste", "fehler", "settings"].forEach((v) => { $("view-" + v).hidden = v !== name; });
+  VIEWS.forEach((v) => { $("view-" + v).hidden = v !== name; });
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
+  // Pille an die Position des aktiven Tabs schieben.
+  const bar = document.querySelector(".tabbar");
+  bar.style.setProperty("--tab-i", VIEWS.indexOf(name));
+  bar.classList.toggle("on-fehler", name === "fehler");
   if (name === "home") renderHome();
   if (name === "liste") renderListe();
   if (name === "fehler") renderFehler();
@@ -633,6 +652,7 @@ document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () 
 function openStartSheet() {
   $("startSheet").hidden = false;
   $("catPanel").hidden = true;
+  replayAnim($("startSheet"));
 }
 function closeStartSheet() { $("startSheet").hidden = true; }
 $("sheetCancel").addEventListener("click", closeStartSheet);
@@ -671,6 +691,7 @@ function closePractice() {
 $("practiceExit").addEventListener("click", () => {
   if (session && !session.endless && session.answered >= 2 && session.answered < session.total) {
     $("confirmExit").hidden = false;
+    replayAnim($("confirmExit"));
   } else {
     closePractice();
   }
@@ -715,6 +736,7 @@ function showSummary() {
   const box = $("summary");
   box.hidden = false;
   box.innerHTML = "";
+  replayAnim(box);
 
   const card = el("div", "summary-card");
   card.appendChild(el("p", "summary-msg", msg));
@@ -859,6 +881,25 @@ function ctaSubLabel() {
   return `${what} · ${PRACTICE_LABEL[practice] || ""}`;
 }
 
+// Fällige Wiederholungen: NUR bereits geübte Wörter, deren Leitner-Frist abgelaufen ist.
+// Wichtig: pickWord() behandelt Wörter ohne progress-Eintrag ebenfalls als fällig
+// (`progress[w.es]?.due || 0`). Für die Kachel wäre das sinnlos — das wären immer alle.
+function dueKeys() {
+  const now = Date.now();
+  return Object.entries(progress)
+    .filter(([key, p]) => p.due <= now && vocabByKey(key))
+    .map(([key]) => key);
+}
+
+// Wort des Tages: aus dem Datum bestimmt, damit es den ganzen Tag stabil bleibt.
+function wordOfDay() {
+  if (!WORDS.length) return null;
+  const key = dayKey();
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 100000;
+  return WORDS[h % WORDS.length];
+}
+
 // Fortschrittsring: SVG-Kreis, Füllstand über stroke-dashoffset.
 function goalRing(pct) {
   const R = 34, C = 2 * Math.PI * R;
@@ -922,6 +963,38 @@ function renderHome() {
   cta.appendChild(el("span", "cta-sub", ctaSubLabel()));
   cta.addEventListener("click", openStartSheet);
   box.appendChild(cta);
+
+  // Fällige Wiederholungen — ruhiger als die Haupt-CTA, damit die Hierarchie stimmt.
+  const due = dueKeys();
+  if (due.length) {
+    const card = el("button", "action-card");
+    const icon = el("span", "action-icon");
+    icon.innerHTML = ICONS.cycle;
+    const txt = el("div", "action-txt");
+    txt.appendChild(el("span", "action-main", `${due.length} ${due.length === 1 ? "Wort" : "Wörter"} fällig`));
+    txt.appendChild(el("span", "action-sub", "Wiederholung nach Plan"));
+    const chev = el("span", "action-chev");
+    chev.innerHTML = ICONS.chevron;
+    card.append(icon, txt, chev);
+    card.addEventListener("click", () => startFocusWith(due, "fällige Wörter"));
+    box.appendChild(card);
+  }
+
+  // Wort des Tages
+  const wod = wordOfDay();
+  if (wod) {
+    box.appendChild(el("div", "home-sec", "Wort des Tages"));
+    const row = el("div", "mini-row");
+    const txt = el("div", "txt");
+    txt.appendChild(el("span", "es", wod.es));
+    txt.appendChild(el("span", "de", wod.de));
+    const say = el("button", "speak");
+    say.setAttribute("aria-label", "Wort vorlesen");
+    say.innerHTML = ICONS.speaker;
+    say.addEventListener("click", () => speak(wod.es));
+    row.append(txt, say);
+    box.appendChild(row);
+  }
 
   // Kurzüberblick: die zuletzt falsch beantworteten Vokabeln
   const recent = [...errors].slice(-3).reverse().map(vocabByKey).filter(Boolean);

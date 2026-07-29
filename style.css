@@ -100,6 +100,11 @@
   --dur-grow: .8s;   /* Fortschritt, der sichtbar aufbaut: Ring, Themen-Balken */
 
   --tabbar-h: 64px;
+  /* Platz, den die schwebende Tabbar unten belegt (Position + Höhe).
+     Verweist auf --tabbar-h — hier zulässig, weil --tabbar-h in keinem Theme
+     überschrieben wird. Bei Farb-Tokens waere das ein Fehler (siehe context.md). */
+  --tabbar-space: calc(env(safe-area-inset-bottom) + 10px + var(--tabbar-h));
+  --fade: 18px;   /* Höhe der weichen Scroll-Ausblendkanten */
 }
 
 /* ============================================================
@@ -253,11 +258,19 @@ body {
 main {
   flex: 1;
   overflow-y: auto;
-  padding-top: 2px;
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 30px);
-  /* weiche Ausblendkante oben statt harter Abrisskante beim Scrollen */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+  /* Oben so viel Luft, dass Titel NICHT in der Ausblendkante liegen. */
+  padding-top: var(--sp-5);
+  padding-bottom: calc(var(--tabbar-space) + var(--sp-5));
+  /* Weiche Ausblendkanten oben UND unten: Inhalt loest sich vor der
+     schwebenden Tabbar auf, statt dahinter durchzuscheinen. */
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--fade),
+    #000 calc(100% - var(--tabbar-space) - 20px),
+    transparent calc(100% - var(--tabbar-space) + 4px));
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--fade),
+    #000 calc(100% - var(--tabbar-space) - 20px),
+    transparent calc(100% - var(--tabbar-space) + 4px));
 }
 .view { display: flex; flex-direction: column; gap: var(--sp-4); }
 
@@ -267,11 +280,13 @@ main {
   to   { opacity: 1; transform: none; }
 }
 .view.view-in { animation: viewIn var(--dur-mid) var(--spring) both; }
+/* Abstand nach oben kommt aus main — hier nur noch Abstand nach unten,
+   damit alle vier Ansichten auf derselben Hoehe beginnen. */
 .view-title {
   font-size: var(--fs-title);
   font-weight: var(--fw-strong);
   line-height: var(--lh-tight);
-  padding: var(--sp-1) 2px;
+  padding: 0 2px var(--sp-1);
 }
 
 /* ============================================================
@@ -279,7 +294,7 @@ main {
    ============================================================ */
 #homeContent { display: flex; flex-direction: column; gap: var(--sp-4); }
 
-.home-head { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-5) 2px 0; }
+.home-head { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
 .home-hello {
   font-size: var(--fs-title); font-weight: var(--fw-strong);
   line-height: var(--lh-tight); color: var(--text);
@@ -344,6 +359,33 @@ main {
 .cta-sub { font-size: var(--fs-caption); font-weight: var(--fw-medium); opacity: .8; }
 .cta:active { transform: scale(.97); filter: brightness(.95); box-shadow: var(--elev-2); }
 
+/* Sekundäre Aktion (fällige Wiederholungen): erhoben, aber ohne Verlauf —
+   tritt bewusst hinter die Haupt-CTA zurück. */
+.action-card {
+  width: 100%; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: var(--sp-3);
+  background: var(--surface-elevated);
+  -webkit-backdrop-filter: var(--blur-md); backdrop-filter: var(--blur-md);
+  border: 1px solid var(--glass-brd); border-radius: var(--r-lg);
+  box-shadow: var(--elev-2);
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--text);
+  transition: transform var(--dur-fast) var(--spring), box-shadow var(--dur-fast) ease;
+}
+.action-card:active { transform: scale(.97); box-shadow: var(--elev-1); }
+.action-icon {
+  flex: none; width: 38px; height: 38px; border-radius: var(--r-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--wine) 14%, transparent);
+  color: var(--wine);
+}
+.action-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.action-txt { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.action-main { font-size: var(--fs-label); font-weight: var(--fw-strong); }
+.action-sub { font-size: var(--fs-caption); color: var(--text-3); }
+.action-chev { flex: none; line-height: 0; color: var(--text-3); }
+.action-chev svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
 /* Abschnittskopf mit „Alle“-Link */
 .home-sec {
   display: flex; align-items: center; justify-content: space-between;
@@ -390,7 +432,7 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .practice-top {
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-3) 0 var(--sp-2);
+  padding: var(--sp-4) 0 var(--sp-2);
   flex: none;
 }
 .icon-btn {
@@ -433,8 +475,11 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   background: rgba(0, 0, 0, .32);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   display: flex; align-items: flex-end;
-  animation: fadeIn var(--dur-mid) ease both;
 }
+/* Animation haengt an .anim-in, nicht am Element: nur so laesst sie sich
+   beim Wiederoeffnen per Reflow neu starten (replayAnim in app.js). */
+.sheet-back.anim-in { animation: fadeIn var(--dur-mid) ease both; }
+.sheet-back.anim-in .sheet { animation: sheetUp var(--dur-slow) var(--spring) both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
 .sheet {
@@ -446,7 +491,6 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   box-shadow: var(--elev-3);
   padding: var(--sp-3) var(--sp-4) calc(env(safe-area-inset-bottom) + var(--sp-5));
   display: flex; flex-direction: column; gap: var(--sp-3);
-  animation: sheetUp var(--dur-slow) var(--spring) both;
 }
 .sheet-grab {
   width: 40px; height: 4px; border-radius: var(--r-pill);
@@ -465,8 +509,8 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   flex: 1; overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--sp-3);
   padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-5));
-  animation: cardIn var(--dur-slow) var(--spring) both;
 }
+.summary.anim-in { animation: cardIn var(--dur-slow) var(--spring) both; }
 .summary-card {
   background: var(--surface-elevated);
   -webkit-backdrop-filter: var(--blur-lg); backdrop-filter: var(--blur-lg);
@@ -508,8 +552,9 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   background: rgba(0, 0, 0, .38);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; padding: var(--sp-5);
-  animation: fadeIn var(--dur-fast) ease both;
 }
+.dialog-back.anim-in { animation: fadeIn var(--dur-fast) ease both; }
+.dialog-back.anim-in .dialog { animation: cardIn var(--dur-mid) var(--spring) both; }
 .dialog {
   width: 100%; max-width: 320px;
   background: var(--surface-elevated);
@@ -518,7 +563,6 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   box-shadow: var(--elev-3);
   padding: var(--sp-5) var(--sp-4) var(--sp-4);
   display: flex; flex-direction: column; gap: var(--sp-2);
-  animation: cardIn var(--dur-mid) var(--spring) both;
 }
 .dialog-title { font-size: var(--fs-lead); font-weight: var(--fw-strong); }
 .dialog-text { font-size: var(--fs-label); color: var(--text-2); }
@@ -856,14 +900,33 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   bottom: calc(env(safe-area-inset-bottom) + 10px);
   height: var(--tabbar-h);
   display: flex; border-radius: var(--r-xl); overflow: hidden;
+  isolation: isolate;   /* Pille bleibt hinter den Tabs */
   background: var(--surface-elevated);
   -webkit-backdrop-filter: var(--blur-lg);
   backdrop-filter: var(--blur-lg);
   border: 1px solid var(--glass-brd);
   box-shadow: var(--elev-3);
 }
+/* Getönte Pille gleitet hinter den aktiven Tab. --tab-i (0–3) kommt aus switchView(). */
+.tab-pill {
+  position: absolute; left: 0; top: 6px; bottom: 6px;
+  width: 25%; pointer-events: none; z-index: 0;
+  transform: translateX(calc(var(--tab-i, 0) * 100%));
+  transition: transform var(--dur-mid) var(--spring);
+}
+.tab-pill::after {
+  content: ""; position: absolute; inset: 0 var(--sp-2);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--wine) 16%, transparent);
+  transition: background var(--dur-slow) ease;
+}
+/* Fehler-Tab behält seinen goldenen Akzent — Pille zieht mit. */
+.tabbar.on-fehler .tab-pill::after {
+  background: color-mix(in srgb, var(--mustard) 22%, transparent);
+}
+
 .tab {
-  flex: 1; background: none; border: none; cursor: pointer;
+  flex: 1; background: none; border: none; cursor: pointer; position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--text-3); font-size: var(--fs-micro); font-weight: var(--fw-medium);
 }
@@ -907,6 +970,10 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .panel-row:active { background: var(--surface-1); }
 .mark:active, .speak:active, .row-star:active, .row-del:active, .banner-x:active { transform: scale(.8); }
 .switch:active { transform: scale(.93); }
+
+/* Tabs blenden die Farbe langsamer über als der Rest (0,12s war kaum sichtbar).
+   Muss NACH der Sammelregel oben stehen; Druck-Effekt bleibt erhalten. */
+.tab { transition: transform var(--dur-fast) var(--spring), color var(--dur-slow) ease; }
 
 /* Barrierefreiheit: Animationen reduzieren, wenn gewünscht */
 @media (prefers-reduced-motion: reduce) {
