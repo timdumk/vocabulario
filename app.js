@@ -23,6 +23,9 @@ let progress = JSON.parse(localStorage.getItem("progress") || "{}"); // { es: {r
 let srs = localStorage.getItem("srs") !== "off";                     // Spaced Repetition an (default)
 let autoSpeak = localStorage.getItem("autoSpeak") === "on";          // spanisches Wort autom. vorlesen
 let practice = localStorage.getItem("practice") || "mc";             // mc | write | cards
+let sfxOn = localStorage.getItem("sfx") === "on";                    // Soundeffekte (Standard aus)
+let accent = localStorage.getItem("accent") || "bordeaux";           // bordeaux | oceano | bosque | indigo
+let fontSize = localStorage.getItem("fontSize") || "m";              // s | m | l
 
 let marked = new Set(JSON.parse(localStorage.getItem("marked") || "[]"));
 let errors = new Set(JSON.parse(localStorage.getItem("errors") || "[]"));
@@ -87,6 +90,43 @@ function applyTheme() {
   if (meta) meta.content = theme === "dark" ? "#16121a" : "#f4ecd9";
 }
 function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
+
+// Akzentfarbe (Klasse auf <body>) und Schriftgröße (Klasse auf <html>, damit rem skaliert).
+const ACCENTS = ["bordeaux", "oceano", "bosque", "indigo"];
+const FONT_SIZES = ["s", "m", "l"];
+function applyAccent() {
+  ACCENTS.forEach((a) => document.body.classList.toggle("accent-" + a, a === accent && a !== "bordeaux"));
+}
+function applyFontSize() {
+  FONT_SIZES.forEach((f) => document.documentElement.classList.toggle("fs-" + f, f === fontSize && f !== "m"));
+}
+
+// --- Soundeffekte: kurze Töne per WebAudio, keine Audiodateien ---
+let audioCtx = null;
+function tone(freq, delay, dur = .18) {
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(.12, t0 + .012);
+  gain.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + .02);
+}
+// „ok" steigend, „bad" fallend, „done" kurzer Dreiklang.
+const SFX = { ok: [[660, 0], [880, .08]], bad: [[320, 0], [220, .1]], done: [[523, 0], [659, .1], [784, .2]] };
+function sfx(type) {
+  if (!sfxOn) return;
+  try {
+    // Wird aus einem Klick-Handler heraus gerufen — dadurch entsperrt iOS den Audio-Context.
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    (SFX[type] || []).forEach(([f, t]) => tone(f, t));
+  } catch (e) { /* Audio nicht verfügbar — stillschweigend überspringen */ }
+}
 
 // --- Tagesfortschritt ---
 // Lokales Datum als YYYY-MM-DD (nicht UTC — sonst springt der Tag abends um).
@@ -161,6 +201,24 @@ function toggleRow(label, isOn, onToggle) {
   sw.appendChild(el("div", "knob"));
   sw.addEventListener("click", () => onToggle(sw.classList.toggle("on")));
   row.appendChild(sw);
+  return row;
+}
+
+// Einstellungs-Zeile mit mehreren Werten zur Auswahl (Tagesziel, Schriftgröße …).
+// opts = [{ v, l }] — Wert und Beschriftung.
+function choiceRow(label, opts, current, onPick) {
+  const row = el("div", "setting-row choice-row");
+  row.appendChild(el("span", null, label));
+  const group = el("div", "choice-opts");
+  opts.forEach((o) => {
+    const b = el("button", o.v === current ? "on" : null, o.l);
+    b.addEventListener("click", () => {
+      group.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+      onPick(o.v);
+    });
+    group.appendChild(b);
+  });
+  row.appendChild(group);
   return row;
 }
 
@@ -458,6 +516,7 @@ function score(ok) {
     feedbackEl.className = "feedback bad";
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
+  sfx(ok ? "ok" : "bad");
   recordAnswer(currentKey, ok);
   const goalJustReached = touchDay();
   saveStats();
@@ -637,6 +696,7 @@ function showSummary() {
   $("progressFill").style.width = "100%";
   $("progressCount").textContent = `${s.total} / ${s.total}`;
 
+  sfx("done");
   const box = $("summary");
   box.hidden = false;
   box.innerHTML = "";
@@ -973,10 +1033,11 @@ function renderFehler() {
 }
 
 // --- Statistik (liest den progress-Store) ---
-function statCard(val, lbl) {
+function statCard(val, lbl, sub) {
   const c = el("div", "stat-card");
   c.appendChild(el("div", "val", String(val)));
   c.appendChild(el("div", "lbl", lbl));
+  if (sub) c.appendChild(el("div", "sub", sub));
   return c;
 }
 function catBar(name, pct) {
@@ -986,8 +1047,8 @@ function catBar(name, pct) {
   const fill = el("div", "fill");
   fill.style.width = pct + "%";
   track.appendChild(fill);
+  track.appendChild(el("span", "pct", pct + "%"));
   row.appendChild(track);
-  row.appendChild(el("span", "pct", pct + "%"));
   return row;
 }
 function renderStatsInto(box) {
@@ -1000,9 +1061,9 @@ function renderStatsInto(box) {
 
   const grid = el("div", "stat-grid");
   grid.append(
-    statCard(`${geübt}/${WORDS.length}`, "geübt"),
-    statCard(gemeistert, "gemeistert"),
-    statCard(quote + "%", "Trefferquote"),
+    statCard(geübt, "geübt", "von " + WORDS.length),
+    statCard(gemeistert, "gemeistert", "Box 5"),
+    statCard(quote + "%", "Treffer", "gesamt"),
   );
   box.appendChild(grid);
 
@@ -1023,26 +1084,68 @@ function renderSettings() {
   box.appendChild(el("div", "stat-h", "Statistik"));
   renderStatsInto(box);
 
-  box.appendChild(el("div", "stat-h", "Einstellungen"));
+  box.appendChild(el("div", "stat-h", "Üben"));
+  box.appendChild(choiceRow("Tagesziel",
+    [10, 20, 30, 50].map((n) => ({ v: n, l: String(n) })), daily.goal, (v) => {
+      daily.goal = v;
+      save("daily", daily);
+    }));
+  box.appendChild(toggleRow("Spaced Repetition", srs, (on) => {
+    srs = on;
+    localStorage.setItem("srs", on ? "on" : "off");
+  }));
+
+  box.appendChild(el("div", "stat-h", "Darstellung"));
   box.appendChild(toggleRow("Dunkelmodus", theme === "dark", (on) => {
     theme = on ? "dark" : "light";
     localStorage.setItem("theme", theme);
     applyTheme();
   }));
-  box.appendChild(toggleRow("Spaced Repetition", srs, (on) => {
-    srs = on;
-    localStorage.setItem("srs", on ? "on" : "off");
-  }));
+
+  const accRow = el("div", "setting-row choice-row");
+  accRow.appendChild(el("span", null, "Akzentfarbe"));
+  const sw = el("div", "swatches");
+  ACCENTS.forEach((a) => {
+    const b = el("button", "swatch sw-" + a + (a === accent ? " on" : ""));
+    b.setAttribute("aria-label", a);
+    b.addEventListener("click", () => {
+      accent = a;
+      localStorage.setItem("accent", a);
+      applyAccent();
+      sw.querySelectorAll(".swatch").forEach((x) => x.classList.toggle("on", x === b));
+    });
+    sw.appendChild(b);
+  });
+  accRow.appendChild(sw);
+  box.appendChild(accRow);
+
+  box.appendChild(choiceRow("Schriftgröße",
+    [{ v: "s", l: "Klein" }, { v: "m", l: "Mittel" }, { v: "l", l: "Groß" }], fontSize, (v) => {
+      fontSize = v;
+      localStorage.setItem("fontSize", v);
+      applyFontSize();
+    }));
+
+  box.appendChild(el("div", "stat-h", "Ton"));
   box.appendChild(toggleRow("Automatisch vorlesen", autoSpeak, (on) => {
     autoSpeak = on;
     localStorage.setItem("autoSpeak", on ? "on" : "off");
   }));
+  box.appendChild(toggleRow("Soundeffekte", sfxOn, (on) => {
+    sfxOn = on;
+    localStorage.setItem("sfx", on ? "on" : "off");
+    if (on) sfx("ok");   // kurze Hörprobe, entsperrt zugleich den Audio-Context
+  }));
 
+  box.appendChild(el("div", "stat-h", "Zurücksetzen"));
   const bStats = el("button", "btn secondary", "Statistik & Fortschritt zurücksetzen");
   bStats.style.marginTop = "10px";
   bStats.addEventListener("click", () => {
     stats = { right: 0, total: 0, streak: 0 }; saveStats();
     progress = {}; save("progress", progress);
+    daily = { date: dayKey(), count: 0, goal: daily.goal, streak: 0, lastGoalDate: "", best: 0 };
+    save("daily", daily);
+    shownMilestones = new Set(); save("milestones", []);
     updateStreakBadge(); renderSettings();
   });
   box.appendChild(bStats);
@@ -1060,6 +1163,8 @@ function renderSettings() {
 
 // --- Init ---
 applyTheme();
+applyAccent();
+applyFontSize();
 $("dirToggle").textContent = dir === "es-de" ? "🇪🇸 → 🇩🇪" : "🇩🇪 → 🇪🇸";
 $("catBtn").textContent = catLabel();
 renderCatPanel();
