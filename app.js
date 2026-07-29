@@ -875,13 +875,20 @@ function vocabRow(w, opts = {}) {
   txt.appendChild(el("span", "de", w.de));
   row.appendChild(txt);
   if (opts.tag === "err") row.appendChild(el("span", "tag err", "Fehler"));
-  if (marked.has(w.es)) { const t = el("span", "tag mark"); t.innerHTML = ICONS.star; row.appendChild(t); }
+  // Der gefüllte Stern zeigt „markiert" bereits an — kein zusätzliches Badge nötig.
   const star = el("button", "row-star" + (marked.has(w.es) ? " on" : ""));
   star.innerHTML = ICONS.star;
   star.addEventListener("click", () => {
-    if (marked.has(w.es)) marked.delete(w.es); else marked.add(w.es);
+    const on = !marked.has(w.es);
+    if (on) marked.add(w.es); else marked.delete(w.es);
     saveSets();
-    if (view === "liste") renderListe(); else renderFehler();
+    // Im Fehler-Tab ändert sich die Liste selbst → neu zeichnen.
+    if (view === "fehler") { renderFehler(); return; }
+    // Sonst nur diese Zeile umschalten, damit die Animation sichtbar bleibt.
+    star.classList.toggle("on", on);
+    star.classList.remove("pop");
+    void star.offsetWidth;
+    star.classList.add("pop");
   });
   row.appendChild(star);
   if (opts.onDelete) {

@@ -699,23 +699,30 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .group-title {
   font-size: var(--fs-caption); font-weight: var(--fw-strong);
   text-transform: uppercase; letter-spacing: .6px;
-  color: var(--wine); padding: var(--sp-3) var(--sp-1) 6px;
+  color: var(--text-3); padding: var(--sp-3) var(--sp-1) 6px;
 }
 .row {
   display: flex; align-items: center; gap: var(--sp-3);
   background: var(--surface-2); border: 1px solid var(--glass-brd); border-radius: var(--r-sm);
-  padding: var(--sp-3) var(--sp-3); margin-bottom: var(--sp-2);
+  padding: 10px var(--sp-3); margin-bottom: 6px;
   box-shadow: var(--elev-1);
 }
 .row .es { font-weight: var(--fw-medium); }
 .row .de { color: var(--text-2); font-size: var(--fs-caption); }
-.row .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.row .txt { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .row .tag { font-size: var(--fs-micro); font-weight: var(--fw-medium); padding: 2px 7px; border-radius: var(--r-pill); }
-.tag.mark { background: var(--mustard-soft); color: var(--text); display: inline-flex; padding: var(--sp-1); }
-.tag.mark svg { width: 13px; height: 13px; fill: currentColor; stroke: none; }
 .tag.err { background: var(--bad-bg); color: var(--bad); }
 .row-star { background: none; border: none; line-height: 0; color: var(--mustard); cursor: pointer; padding: var(--sp-1); }
 .row-del { background: none; border: none; line-height: 0; color: var(--text-3); cursor: pointer; padding: var(--sp-1); }
+
+/* Favoriten-Stern: Füllung weich, kurzer Bounce beim Umschalten */
+.row-star svg { transition: fill var(--dur-mid) ease; }
+@keyframes starPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.38); }
+  100% { transform: scale(1); }
+}
+.row-star.pop svg { animation: starPop var(--dur-slow) var(--spring); }
 
 .empty { text-align: center; color: var(--text-3); padding: 40px var(--sp-5); font-size: var(--fs-label); }
 
