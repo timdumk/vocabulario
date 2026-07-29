@@ -97,6 +97,7 @@
   --dur-fast: .12s;
   --dur-mid: .24s;
   --dur-slow: .36s;
+  --dur-grow: .8s;   /* Fortschritt, der sichtbar aufbaut: Ring, Themen-Balken */
 
   --tabbar-h: 64px;
 }
@@ -259,6 +260,13 @@ main {
   mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
 }
 .view { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* Tab-Wechsel: weiches Auf-Blenden statt hartem Schnitt */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.view.view-in { animation: viewIn var(--dur-mid) var(--spring) both; }
 .view-title {
   font-size: var(--fs-title);
   font-weight: var(--fw-strong);
@@ -309,7 +317,7 @@ main {
 .ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 7; }
 .ring-fill {
   fill: none; stroke: url(#ringGrad); stroke-width: 7; stroke-linecap: round;
-  transition: stroke-dashoffset var(--dur-slow) var(--spring);
+  transition: stroke-dashoffset var(--dur-grow) var(--spring);
 }
 .ring-a { stop-color: var(--mustard); }
 .ring-b { stop-color: var(--wine); }
@@ -805,7 +813,7 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .cat-bar .fill {
   height: 100%; border-radius: var(--r-pill);
   background: var(--grad-progress);
-  transition: width var(--dur-slow) var(--spring);
+  transition: width var(--dur-grow) var(--spring);
 }
 .cat-bar .pct {
   position: absolute; top: 0; right: var(--sp-2); height: 100%;

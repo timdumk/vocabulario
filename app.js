@@ -91,6 +91,15 @@ function applyTheme() {
 }
 function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
 
+// Systemeinstellung „Bewegung reduzieren" respektieren: dann Endwerte direkt setzen.
+const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Endwert erst im nächsten Frame setzen, damit die CSS-Transition greift.
+function growTo(setFinal, setStart) {
+  if (reduceMotion()) { setFinal(); return; }
+  setStart();
+  requestAnimationFrame(() => requestAnimationFrame(setFinal));
+}
+
 // Akzentfarbe (Klasse auf <body>) und Schriftgröße (Klasse auf <html>, damit rem skaliert).
 const ACCENTS = ["bordeaux", "oceano", "bosque", "indigo"];
 const FONT_SIZES = ["s", "m", "l"];
@@ -607,6 +616,12 @@ function switchView(name) {
   if (name === "liste") renderListe();
   if (name === "fehler") renderFehler();
   if (name === "settings") renderSettings();
+  // Weicher Übergang statt hartem Schnitt; Animation neu starten erzwingen.
+  const v = $("view-" + name);
+  v.classList.remove("view-in");
+  void v.offsetWidth;
+  v.classList.add("view-in");
+  document.querySelector("main").scrollTop = 0;
 }
 document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
 
@@ -859,8 +874,14 @@ function goalRing(pct) {
       <circle class="ring-track" cx="40" cy="40" r="${R}"></circle>
       <circle class="ring-fill" cx="40" cy="40" r="${R}"
               stroke-dasharray="${C.toFixed(1)}"
-              stroke-dashoffset="${(C * (1 - pct)).toFixed(1)}"></circle>
+              stroke-dashoffset="${C.toFixed(1)}"></circle>
     </svg>`;
+  // Ring füllt sich sichtbar von leer auf den Tagesstand.
+  const fill = wrap.querySelector(".ring-fill");
+  growTo(
+    () => { fill.style.strokeDashoffset = (C * (1 - pct)).toFixed(1); },
+    () => { fill.style.strokeDashoffset = C.toFixed(1); },
+  );
   return wrap;
 }
 
@@ -1040,15 +1061,20 @@ function statCard(val, lbl, sub) {
   if (sub) c.appendChild(el("div", "sub", sub));
   return c;
 }
-function catBar(name, pct) {
+function catBar(name, pct, index = 0) {
   const row = el("div", "cat-bar");
   row.appendChild(el("span", "name", name));
   const track = el("div", "track");
   const fill = el("div", "fill");
-  fill.style.width = pct + "%";
   track.appendChild(fill);
   track.appendChild(el("span", "pct", pct + "%"));
   row.appendChild(track);
+  // Balken wachsen von links, leicht versetzt nacheinander.
+  fill.style.transitionDelay = Math.min(index, 8) * 40 + "ms";
+  growTo(
+    () => { fill.style.width = pct + "%"; },
+    () => { fill.style.width = "0%"; },
+  );
   return row;
 }
 function renderStatsInto(box) {
@@ -1068,11 +1094,11 @@ function renderStatsInto(box) {
   box.appendChild(grid);
 
   box.appendChild(el("div", "stat-h", "Nach Thema"));
-  allCats.forEach((c) => {
+  allCats.forEach((c, i) => {
     const words = WORDS.filter((w) => w.cat === c);
     const sumBox = words.reduce((a, w) => a + ((progress[w.es]?.box) || 0), 0);
     const pct = words.length ? Math.round((sumBox / (5 * words.length)) * 100) : 0;
-    box.appendChild(catBar(c, pct));
+    box.appendChild(catBar(c, pct, i));
   });
 }
 
