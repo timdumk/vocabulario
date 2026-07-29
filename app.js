@@ -874,7 +874,12 @@ function vocabRow(w, opts = {}) {
   txt.appendChild(el("span", "es", w.es));
   txt.appendChild(el("span", "de", w.de));
   row.appendChild(txt);
-  if (opts.tag === "err") row.appendChild(el("span", "tag err", "Fehler"));
+  // Statusindikator statt Text-Badge: Icon + Farbe unterscheiden Fehler und Markierung.
+  if (opts.status) {
+    const dot = el("span", "status-dot " + (opts.status === "err" ? "bad" : "mark"));
+    dot.innerHTML = opts.status === "err" ? ICONS.alert : ICONS.star;
+    row.insertBefore(dot, txt);
+  }
   // Der gefüllte Stern zeigt „markiert" bereits an — kein zusätzliches Badge nötig.
   const star = el("button", "row-star" + (marked.has(w.es) ? " on" : ""));
   star.innerHTML = ICONS.star;
@@ -954,12 +959,16 @@ function renderFehler() {
     box.appendChild(el("div", "empty", "Noch nichts markiert. Tippe beim Üben auf den Stern ☆ oder mach einen Fehler – dann taucht die Vokabel hier auf."));
     return;
   }
-  const btn = el("button", "btn", `Diese ${keys.length} üben`);
-  btn.addEventListener("click", startFocus);
-  box.appendChild(btn);
+  // Primäre Aktion: gleiche Behandlung wie die Home-CTA, damit sie klar dominiert.
+  const cta = el("button", "cta");
+  cta.appendChild(el("span", "cta-main", `Diese ${keys.length} üben`));
+  cta.appendChild(el("span", "cta-sub", `${errors.size} Fehler · ${marked.size} markiert`));
+  cta.addEventListener("click", startFocus);
+  box.appendChild(cta);
+
   box.appendChild(el("div", "group-title", "Vokabeln"));
   keys.map(vocabByKey).filter(Boolean).forEach((w) => {
-    box.appendChild(vocabRow(w, { tag: errors.has(w.es) ? "err" : null }));
+    box.appendChild(vocabRow(w, { status: errors.has(w.es) ? "err" : "mark" }));
   });
 }
 
