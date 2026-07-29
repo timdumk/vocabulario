@@ -240,6 +240,21 @@ main {
 .write-input.correct { border-color: var(--ok); background: var(--ok-bg); }
 .write-input.wrong { border-color: var(--bad); background: var(--bad-bg); }
 
+/* Verben-Tabelle */
+.conj-table { display: flex; flex-direction: column; gap: 8px; }
+.conj-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.conj-person { width: 82px; flex: none; color: var(--muted); font-weight: 700; font-size: 14px; }
+.conj-input {
+  flex: 1; min-width: 130px; background: var(--glass-strong); color: var(--text);
+  border: 1.5px solid var(--glass-brd); border-radius: 12px; padding: 11px 13px; font-size: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.conj-input:focus { outline: none; border-color: var(--wine); }
+.conj-input.correct { border-color: var(--ok); background: var(--ok-bg); }
+.conj-input.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.conj-sol { color: var(--ok); font-weight: 700; font-size: 14px; margin-left: 92px; }
+.conj-table .next { margin-top: 8px; }
+
 .next {
   background: var(--grad-accent); color: #fff; border: none; border-radius: 16px;
   padding: 16px; font-size: 17px; font-weight: 700; cursor: pointer;

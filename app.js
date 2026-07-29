@@ -337,10 +337,55 @@ function specialQuestion() {
 function newQuestion() {
   if (mode === "verbs" && !focusMode) {
     if (typeFilter === "special") specialQuestion();
+    else if (practice === "table") verbTableQuestion();
     else verbQuestion();
   } else {
     vocabQuestion();
   }
+}
+
+// --- Verben-Tabelle: alle Personen konjugieren (Zeitform vorgegeben) ---
+function verbTableQuestion() {
+  currentKey = null;
+  correctText = null; // Tabelle hat keine einzelne „richtige Antwort" (Feld-Feedback stattdessen)
+  const pool = (typeFilter === "Alle" || typeFilter === "special") ? VERBS : VERBS.filter((v) => v.type === typeFilter);
+  const verb = rand(pool);
+  currentSpanish = verb.inf;
+  const tense = tenseFilter === "Alle" ? rand(TENSES) : tenseFilter;
+  setHeader("Konjugiere alle Personen", verb.inf, false, { sub: verb.de, badges: [tense] });
+
+  const form = el("form", "conj-table");
+  const inputs = [];
+  PERSONS.forEach((p) => {
+    const row = el("div", "conj-row");
+    row.appendChild(el("span", "conj-person", p));
+    const inp = el("input", "conj-input");
+    inp.type = "text"; inp.autocapitalize = "off"; inp.autocomplete = "off"; inp.spellcheck = false;
+    row.appendChild(inp);
+    form.appendChild(row);
+    inputs.push(inp);
+  });
+  const btn = el("button", "next", "Prüfen");
+  btn.type = "submit";
+  form.appendChild(btn);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (answered) return;
+    answered = true;
+    let all = true;
+    inputs.forEach((inp, i) => {
+      const sol = verbForm(verb, tense, i);
+      const ok = writeCorrect(inp.value, sol, true);
+      inp.disabled = true;
+      inp.classList.add(ok ? "correct" : "wrong");
+      if (!ok) { all = false; inp.parentElement.appendChild(el("span", "conj-sol", sol)); }
+    });
+    btn.hidden = true;
+    score(all);
+  });
+  optionsEl.appendChild(form);
+  inputs[0].focus();
+  maybeAutoSpeak();
 }
 
 // --- Antwort werten (gemeinsam für alle Übungsarten) ---
@@ -353,7 +398,7 @@ function score(ok) {
     if (currentKey && errors.has(currentKey)) { errors.delete(currentKey); saveSets(); }
   } else {
     stats.streak = 0;
-    feedbackEl.textContent = "Richtig: " + correctText;
+    feedbackEl.textContent = correctText ? ("Richtig: " + correctText) : "Nicht ganz — Lösungen stehen oben.";
     feedbackEl.className = "feedback bad";
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
@@ -400,12 +445,27 @@ function setMode(m) {
   $("vocabControls").hidden = mode !== "vocab";
   $("verbControls").hidden = mode !== "verbs";
   if (mode === "verbs" && focusMode) { exitFocus(); }
+  syncPractice();
   newQuestion();
 }
 $("modeVocab").addEventListener("click", () => setMode("vocab"));
 $("modeVerbs").addEventListener("click", () => setMode("verbs"));
 
-// --- Übungsart-Umschalter (Auswahl/Schreiben/Karten) ---
+// Dritte Übungsart ist modusabhängig: Vokabeln → Karten, Verben → Tabelle.
+function syncPractice() {
+  const third = document.querySelectorAll("#practiceModes .mode")[2];
+  if (mode === "verbs") {
+    if (practice === "cards") practice = "table";
+    third.dataset.practice = "table"; third.textContent = "Tabelle";
+  } else {
+    if (practice === "table") practice = "cards";
+    third.dataset.practice = "cards"; third.textContent = "Karten";
+  }
+  localStorage.setItem("practice", practice);
+  document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === practice));
+}
+
+// --- Übungsart-Umschalter (Auswahl/Schreiben/Karten|Tabelle) ---
 function setPractice(p) {
   practice = p;
   localStorage.setItem("practice", p);
@@ -674,7 +734,7 @@ $("modeVocab").classList.toggle("active", mode === "vocab");
 $("modeVerbs").classList.toggle("active", mode === "verbs");
 $("vocabControls").hidden = mode !== "vocab";
 $("verbControls").hidden = mode !== "verbs";
-document.querySelectorAll("#practiceModes .mode").forEach((b) => b.classList.toggle("active", b.dataset.practice === practice));
+syncPractice();
 newQuestion();
 
 // iOS: aktiviert :active-Drück-Effekte beim Antippen (sonst ignoriert Safari sie bei Touch)
