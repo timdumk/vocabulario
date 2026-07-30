@@ -229,9 +229,24 @@ html.fs-l { font-size: 17.5px; }
 [hidden] { display: none !important; }
 html { touch-action: manipulation; -webkit-text-size-adjust: 100%; } /* kein Pinch-/Doppeltipp-Zoom */
 
+/* Hintergrundverlauf liegt auf einer eigenen Ebene, damit er sich per transform
+   bewegen kann (GPU) statt per background-position (Repaint in jedem Frame).
+   inset: -20% gibt Spielraum, damit beim Verschieben nie eine Kante sichtbar wird. */
+body::before {
+  content: "";
+  position: fixed; inset: -20%; z-index: -1;
+  background: var(--bg-grad);
+  will-change: transform;
+  animation: bgDrift 45s ease-in-out infinite;
+}
+@keyframes bgDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1.04); }
+  50%  { transform: translate3d(-2.2%, 1.6%, 0) scale(1.11); }
+  100% { transform: translate3d(0, 0, 0) scale(1.04); }
+}
+
 body {
   font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg-grad) fixed;
   background-color: var(--bg);
   color: var(--text);
   font-size: var(--fs-body);
@@ -325,6 +340,18 @@ main {
   display: inline-flex; align-items: center; gap: 5px; text-align: center;
 }
 .streak-lbl svg { width: 16px; height: 16px; fill: var(--mustard); stroke: none; flex: none; }
+/* Flackert nur bei laufendem Streak (Klasse kommt aus renderHome).
+   Ursprung unten, damit es wie eine Flamme wirkt und nicht wie Zappeln. */
+.streak-lbl.live svg {
+  transform-origin: 50% 80%;
+  animation: flameFlicker 3s ease-in-out infinite;
+}
+@keyframes flameFlicker {
+  0%, 100% { transform: scale(1);      opacity: 1;   }
+  30%      { transform: scale(1.14);   opacity: .82; }
+  55%      { transform: scale(.96);    opacity: 1;   }
+  78%      { transform: scale(1.07);   opacity: .9;  }
+}
 
 /* Fortschrittsring */
 .ring { position: relative; width: 88px; height: 88px; }
@@ -336,6 +363,13 @@ main {
 }
 .ring-a { stop-color: var(--mustard); }
 .ring-b { stop-color: var(--wine); }
+/* Atmet erst, wenn das Tagesziel erreicht ist — den Rest des Tages still.
+   Nur opacity: billigste animierbare Eigenschaft, kein drop-shadow (Repaints). */
+.ring.done .ring-fill { animation: ringGlow 2.6s ease-in-out infinite; }
+@keyframes ringGlow {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .68; }
+}
 .ring-center {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
@@ -423,12 +457,14 @@ main {
    ÜBUNG — Vollbild-Flow ohne Tab-Bar
    ============================================================ */
 body.in-practice .tabbar, body.in-practice main { display: none; }
+/* Kein eigener Hintergrund: main ist waehrend der Uebung ausgeblendet, dadurch
+   scheint die Drift-Ebene des body durch — Home und Uebung driften identisch. */
+/* Die Safe-Area-Reserve liegt hier AUSSEN, nicht im Scrollcontainer: sonst
+   zaehlt sie beim Zentrieren als Inhalt und der Block sitzt sichtbar zu hoch. */
 .practice {
   position: fixed; inset: 0; z-index: 20;
   display: flex; flex-direction: column;
-  padding: env(safe-area-inset-top) var(--sp-4) 0;
-  background: var(--bg-grad) fixed;
-  background-color: var(--bg);
+  padding: env(safe-area-inset-top) var(--sp-4) calc(env(safe-area-inset-bottom) + var(--sp-3));
 }
 .practice-top {
   display: flex; align-items: center; gap: var(--sp-3);
@@ -459,7 +495,16 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .practice-body {
   flex: 1; overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--sp-4);
-  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-5));
+}
+/* Karte + Weiter-Button mittig im freien Raum.
+   margin-block: auto statt justify-content: center — bei zu hohem Inhalt
+   (Verben-Tabelle) werden die Auto-Margins zu 0, der Block rueckt nach oben
+   und bleibt vollstaendig scrollbar. justify-content: center wuerde den
+   oberen Teil abschneiden und unerreichbar machen. */
+.practice-center {
+  margin-block: auto;
+  width: 100%;
+  display: flex; flex-direction: column; gap: var(--sp-4);
 }
 
 /* Karte federnd einblenden */
@@ -508,8 +553,11 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .summary {
   flex: 1; overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--sp-3);
-  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-5));
 }
+/* Gleiche Zentrierung wie .practice-center, aber ohne Wrapper —
+   die Kinder entstehen erst in showSummary(). */
+.summary > :first-child { margin-top: auto; }
+.summary > :last-child { margin-bottom: auto; }
 .summary.anim-in { animation: cardIn var(--dur-slow) var(--spring) both; }
 .summary-card {
   background: var(--surface-elevated);
@@ -518,7 +566,6 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   box-shadow: var(--elev-3);
   padding: var(--sp-6) var(--sp-4);
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
-  margin-top: var(--sp-5);
 }
 .summary-msg {
   font-size: var(--fs-lead); font-weight: var(--fw-strong);
@@ -673,6 +720,15 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .card-streak svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
 .speak { background: none; border: none; line-height: 0; cursor: pointer; padding: 0; color: var(--text-3); }
+/* Pulsiert, solange die Sprachausgabe laeuft. Die Farbaenderung ist bewusst
+   statisch: der prefers-reduced-motion-Block unten killt jede Animation, und
+   dieses Signal ist funktional, nicht dekorativ — es muss auch dann ankommen. */
+.speak.speaking { color: var(--wine); }
+.speak.speaking svg { animation: speakPulse 1s ease-in-out infinite; }
+@keyframes speakPulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%      { transform: scale(1.18); opacity: .65; }
+}
 .mark { background: none; border: none; line-height: 0; color: var(--mustard); cursor: pointer; padding: 0; }
 /* Icon-Buttons: SVG-Größe/Stil */
 .speak svg, .mark svg, .row-star svg, .row-del svg {

@@ -202,14 +202,26 @@ function pickWord(words) {
 }
 
 // --- Vorlesen (gratis über Browser-Sprachausgabe) ---
-function speak(text) {
+// btn (optional) pulsiert, solange tatsächlich Ton läuft — bisher gab es beim
+// Antippen gar keine Rückmeldung.
+function clearSpeaking() {
+  document.querySelectorAll(".speak.speaking").forEach((b) => b.classList.remove("speaking"));
+}
+function speak(text, btn) {
   if (!text || !("speechSynthesis" in window)) return;
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "es-ES";
-  speechSynthesis.cancel();
+  speechSynthesis.cancel();   // bricht eine laufende Ausgabe ab …
+  clearSpeaking();            // … deren onend dann nicht mehr zuverlässig feuert
+  if (btn) {
+    u.onstart = () => btn.classList.add("speaking");
+    // onend UND onerror: sonst bleibt der Puls hängen, wenn die Ausgabe abbricht.
+    u.onend = () => btn.classList.remove("speaking");
+    u.onerror = () => btn.classList.remove("speaking");
+  }
   speechSynthesis.speak(u);
 }
-function maybeAutoSpeak() { if (autoSpeak) speak(currentSpanish); }
+function maybeAutoSpeak() { if (autoSpeak) speak(currentSpanish, speakBtn); }
 
 // Baut eine Einstellungs-Zeile mit Umschalter (wiederverwendet für Dark/SRS/Audio).
 function toggleRow(label, isOn, onToggle) {
@@ -552,7 +564,7 @@ function score(ok) {
 }
 
 // --- Vorlesen (Lautsprecher auf der Karte) ---
-speakBtn.addEventListener("click", () => speak(currentSpanish));
+speakBtn.addEventListener("click", () => speak(currentSpanish, speakBtn));
 
 // --- Markieren (Stern auf der Karte) ---
 markBtn.addEventListener("click", () => {
@@ -903,7 +915,7 @@ function wordOfDay() {
 // Fortschrittsring: SVG-Kreis, Füllstand über stroke-dashoffset.
 function goalRing(pct) {
   const R = 34, C = 2 * Math.PI * R;
-  const wrap = el("div", "ring");
+  const wrap = el("div", "ring" + (pct >= 1 ? " done" : ""));
   wrap.innerHTML = `
     <svg viewBox="0 0 80 80" aria-hidden="true">
       <defs>
@@ -941,7 +953,7 @@ function renderHome() {
 
   const streakTile = el("div", "tile");
   streakTile.appendChild(el("div", "tile-num", String(daily.streak)));
-  const sl = el("div", "tile-lbl streak-lbl");
+  const sl = el("div", "tile-lbl streak-lbl" + (daily.streak > 0 ? " live" : ""));
   sl.innerHTML = ICONS.flame;
   sl.appendChild(el("span", null, daily.streak === 1 ? "Tag in Folge" : "Tage in Folge"));
   streakTile.appendChild(sl);
@@ -991,7 +1003,7 @@ function renderHome() {
     const say = el("button", "speak");
     say.setAttribute("aria-label", "Wort vorlesen");
     say.innerHTML = ICONS.speaker;
-    say.addEventListener("click", () => speak(wod.es));
+    say.addEventListener("click", () => speak(wod.es, say));
     row.append(txt, say);
     box.appendChild(row);
   }
