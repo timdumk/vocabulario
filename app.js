@@ -94,6 +94,24 @@ function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
 
 // Systemeinstellung „Bewegung reduzieren" respektieren: dann Endwerte direkt setzen.
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Der Übungsblock ist vertikal zentriert. Sobald Inhalt dazukommt — Weiter-Button,
+// aufgedeckte Lösungen, Bewertungsknöpfe — würde die Zentrierung alles nach oben
+// ziehen (gemessen bis zu 78px). Deshalb einmal pro Frage die zentrierte
+// Startposition messen und als festes margin-top einfrieren: der Block wächst
+// dann nur noch nach unten und bleibt optisch stehen.
+function anchorCard() {
+  const wrap = document.querySelector(".practice-center");
+  const body = $("practiceBody");
+  if (!wrap || !body) return;
+  wrap.style.marginTop = "";        // zurück auf auto → Browser zentriert neu
+  wrap.style.marginBottom = "";
+  requestAnimationFrame(() => {
+    const abstand = wrap.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    wrap.style.marginTop = Math.max(0, Math.round(abstand)) + "px";
+    wrap.style.marginBottom = "auto";
+  });
+}
+
 // CSS-Animation neu starten. Nötig, weil eine abgelaufene Animation nicht
 // erneut läuft, wenn ein Element nur per `hidden` aus- und wieder eingeblendet wird.
 function replayAnim(node, cls = "anim-in") {
@@ -299,6 +317,7 @@ function render(labelText, wordText, choices, correct, showMark, meta) {
   if (practice === "write") renderWrite();
   else if (practice === "cards") renderCards();
   else renderMC(choices);
+  anchorCard();   // erst NACH dem Rendern der Optionen — sonst falsche Höhe
 }
 
 // Übungsart „Auswahl" (Multiple Choice)
@@ -529,6 +548,7 @@ function verbTableQuestion() {
   });
   optionsEl.appendChild(form);
   inputs[0].focus();
+  anchorCard();   // Tabelle baut ohne render() auf, braucht den Aufruf separat
   maybeAutoSpeak();
 }
 

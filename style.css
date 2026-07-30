@@ -53,9 +53,11 @@
   --bad-bg: rgba(178, 58, 52, .13);
 
   /* --- Oberflächen-Ebenen: Hintergrund → Fläche → schwebende Karte --- */
-  --surface-1: rgba(255, 253, 247, .55);   /* ruhige Flächen, Panels */
-  --surface-2: rgba(255, 253, 247, .78);   /* Zeilen, Felder, Chips */
-  --surface-elevated: rgba(255, 253, 247, .92); /* Karten, die sichtbar schweben */
+  --surface-1: rgba(255, 253, 247, .38);   /* ruhige Flächen, Panels */
+  --surface-2: rgba(255, 253, 247, .55);   /* Zeilen, Felder, Chips */
+  --surface-elevated: rgba(255, 253, 247, .58); /* Kacheln, Tabbar, Sheets */
+  --surface-card: rgba(255, 253, 247, .72);     /* NUR die Übungskarte: dort wird
+                                                   gelesen, deshalb mehr Deckkraft */
   --surface-solid: #fffdf7;                /* Fallback ohne Transparenz */
   --surface-sunken: #efe4cc;               /* Vertiefungen: Balken-Tracks, Switch */
 
@@ -65,10 +67,11 @@
   --text-3: #9c8f77;    /* tertiär: Metadaten, Platzhalter */
 
   /* --- Glas --- */
-  --glass-brd: rgba(255, 255, 255, .65);
-  --blur-sm: blur(14px) saturate(140%);
-  --blur-md: blur(20px) saturate(145%);
-  --blur-lg: blur(24px) saturate(160%);
+  /* Je durchsichtiger die Fläche, desto mehr traegt die Kante die Form. */
+  --glass-brd: rgba(255, 255, 255, .80);
+  --blur-sm: blur(22px) saturate(175%);
+  --blur-md: blur(30px) saturate(185%);
+  --blur-lg: blur(40px) saturate(190%);
 
   /* --- Elevation: 3 Stufen für echte Tiefe --- */
   --elev-1: 0 1px 2px rgba(90, 60, 20, .06), 0 2px 8px rgba(90, 60, 20, .07);
@@ -80,7 +83,7 @@
   --grad-progress: linear-gradient(90deg, #d9a441, #a6384a);
   --on-accent: #fff;         /* Text auf Primärfarbe */
   --on-mustard: #3a2b08;     /* Text auf Sekundärfarbe */
-  --sheen: rgba(255, 255, 255, .25); /* Glanzkante oben auf Karten */
+  --sheen: rgba(255, 255, 255, .34); /* Glanzkante oben auf Karten */
 
   /* Vorschau-Verläufe für die Akzentfarben-Auswahl */
   --pal-bordeaux: linear-gradient(135deg, #a6384a 55%, #d9a441 55%);
@@ -88,8 +91,9 @@
   --pal-bosque:   linear-gradient(135deg, #3a8564 55%, #c9a227 55%);
   --pal-indigo:   linear-gradient(135deg, #5d55ad 55%, #d98d3f 55%);
   --bg-grad:
-    radial-gradient(1200px 620px at 18% -8%, rgba(217, 164, 65, .30), transparent 60%),
-    radial-gradient(1000px 700px at 104% -2%, rgba(138, 46, 59, .20), transparent 55%),
+    radial-gradient(640px 500px at 10% 4%,  rgba(217, 164, 65, 0.55), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(138, 46, 59, 0.38), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(166, 56, 74, 0.3), transparent 66%),
     linear-gradient(180deg, #f8f1e3 0%, #eee1c8 100%);
 
   /* --- Bewegung: Feder, kurz, ohne starkes Overshoot --- */
@@ -123,9 +127,13 @@ body.dark {
   --bad: #e0776d;
   --bad-bg: rgba(224, 119, 109, .18);
 
-  --surface-1: rgba(42, 34, 44, .48);
-  --surface-2: rgba(46, 38, 48, .68);
-  --surface-elevated: rgba(54, 45, 56, .86);
+  /* Deutlich HELLER als der Untergrund und stark durchsichtig — nur so liest
+     sich mattiertes Glas. Ein dunkles Grau auf fast schwarzem Grund wirkt
+     dagegen wie eine massive Flaeche. */
+  --surface-1: rgba(122, 112, 132, .16);
+  --surface-2: rgba(132, 122, 142, .22);
+  --surface-elevated: rgba(140, 130, 150, .26);
+  --surface-card: rgba(128, 118, 138, .34);
   --surface-solid: #262019;
   --surface-sunken: #322a20;
 
@@ -133,8 +141,8 @@ body.dark {
   --text-2: #b9ac96;
   --text-3: #8a7f6c;
 
-  --glass-brd: rgba(255, 255, 255, .14);
-  --sheen: rgba(255, 255, 255, .07);
+  --glass-brd: rgba(255, 255, 255, .22);
+  --sheen: rgba(255, 255, 255, .10);
   --elev-1: 0 1px 3px rgba(0, 0, 0, .35), 0 2px 10px rgba(0, 0, 0, .3);
   --elev-2: 0 3px 10px rgba(0, 0, 0, .42), 0 10px 26px rgba(0, 0, 0, .4);
   --elev-3: 0 6px 16px rgba(0, 0, 0, .5), 0 20px 46px rgba(0, 0, 0, .55);
@@ -142,9 +150,10 @@ body.dark {
   --grad-accent: linear-gradient(135deg, #b3495a, #7f2c3c);
   --grad-progress: linear-gradient(90deg, #e0b24a, #c05467);
   --bg-grad:
-    radial-gradient(1100px 620px at 14% -8%, rgba(192, 84, 103, .32), transparent 60%),
-    radial-gradient(1000px 700px at 104% 2%, rgba(224, 178, 74, .15), transparent 55%),
-    linear-gradient(180deg, #1e1826 0%, #110e15 100%);
+    radial-gradient(640px 500px at 10% 4%,  rgba(192, 84, 103, 0.44), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(224, 178, 74, 0.26), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(138, 74, 110, 0.3), transparent 66%),
+    linear-gradient(180deg, #241d2e 0%, #15111c 100%);
 }
 
 /* ============================================================
@@ -158,8 +167,9 @@ body.accent-oceano {
   --grad-accent: linear-gradient(135deg, #1d8398, #10505f);
   --grad-progress: linear-gradient(90deg, #e08e45, #16697a);
   --bg-grad:
-    radial-gradient(1200px 620px at 18% -8%, rgba(224, 142, 69, .26), transparent 60%),
-    radial-gradient(1000px 700px at 104% -2%, rgba(22, 105, 122, .20), transparent 55%),
+    radial-gradient(640px 500px at 10% 4%,  rgba(224, 142, 69, 0.55), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(22, 105, 122, 0.38), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(29, 131, 152, 0.3), transparent 66%),
     linear-gradient(180deg, #f4f0e6 0%, #e6e6d8 100%);
 }
 body.accent-bosque {
@@ -168,8 +178,9 @@ body.accent-bosque {
   --grad-accent: linear-gradient(135deg, #3a8564, #1f4d39);
   --grad-progress: linear-gradient(90deg, #c9a227, #2d6a4f);
   --bg-grad:
-    radial-gradient(1200px 620px at 18% -8%, rgba(201, 162, 39, .26), transparent 60%),
-    radial-gradient(1000px 700px at 104% -2%, rgba(45, 106, 79, .18), transparent 55%),
+    radial-gradient(640px 500px at 10% 4%,  rgba(201, 162, 39, 0.55), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(45, 106, 79, 0.38), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(58, 133, 100, 0.3), transparent 66%),
     linear-gradient(180deg, #f5f2e4 0%, #e8e6cf 100%);
 }
 body.accent-indigo {
@@ -178,8 +189,9 @@ body.accent-indigo {
   --grad-accent: linear-gradient(135deg, #5d55ad, #363073);
   --grad-progress: linear-gradient(90deg, #d98d3f, #4b4494);
   --bg-grad:
-    radial-gradient(1200px 620px at 18% -8%, rgba(217, 141, 63, .24), transparent 60%),
-    radial-gradient(1000px 700px at 104% -2%, rgba(75, 68, 148, .20), transparent 55%),
+    radial-gradient(640px 500px at 10% 4%,  rgba(217, 141, 63, 0.55), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(75, 68, 148, 0.38), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(93, 85, 173, 0.3), transparent 66%),
     linear-gradient(180deg, #f3f1ea 0%, #e4e2ee 100%);
 }
 
@@ -190,9 +202,10 @@ body.dark.accent-oceano {
   --grad-accent: linear-gradient(135deg, #2f93a8, #14596a);
   --grad-progress: linear-gradient(90deg, #eda860, #4bb8cc);
   --bg-grad:
-    radial-gradient(1100px 620px at 14% -8%, rgba(75, 184, 204, .26), transparent 60%),
-    radial-gradient(1000px 700px at 104% 2%, rgba(237, 168, 96, .14), transparent 55%),
-    linear-gradient(180deg, #14202a 0%, #0c1116 100%);
+    radial-gradient(640px 500px at 10% 4%,  rgba(75, 184, 204, 0.44), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(237, 168, 96, 0.26), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(47, 147, 168, 0.3), transparent 66%),
+    linear-gradient(180deg, #182833 0%, #0f151b 100%);
 }
 body.dark.accent-bosque {
   --wine: #62b98e; --wine-dark: #2d6a4f; --wine-lite: #7ccfa4;
@@ -200,9 +213,10 @@ body.dark.accent-bosque {
   --grad-accent: linear-gradient(135deg, #3f9670, #245640);
   --grad-progress: linear-gradient(90deg, #dcbf4f, #62b98e);
   --bg-grad:
-    radial-gradient(1100px 620px at 14% -8%, rgba(98, 185, 142, .26), transparent 60%),
-    radial-gradient(1000px 700px at 104% 2%, rgba(220, 191, 79, .13), transparent 55%),
-    linear-gradient(180deg, #16211b 0%, #0d120f 100%);
+    radial-gradient(640px 500px at 10% 4%,  rgba(98, 185, 142, 0.44), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(220, 191, 79, 0.26), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(63, 150, 112, 0.3), transparent 66%),
+    linear-gradient(180deg, #1b2a22 0%, #101713 100%);
 }
 body.dark.accent-indigo {
   --wine: #8b83e0; --wine-dark: #4b4494; --wine-lite: #a49df0;
@@ -210,9 +224,10 @@ body.dark.accent-indigo {
   --grad-accent: linear-gradient(135deg, #6259bd, #393285);
   --grad-progress: linear-gradient(90deg, #e8a460, #8b83e0);
   --bg-grad:
-    radial-gradient(1100px 620px at 14% -8%, rgba(139, 131, 224, .28), transparent 60%),
-    radial-gradient(1000px 700px at 104% 2%, rgba(232, 164, 96, .13), transparent 55%),
-    linear-gradient(180deg, #1a1826 0%, #100e17 100%);
+    radial-gradient(640px 500px at 10% 4%,  rgba(139, 131, 224, 0.44), transparent 62%),
+    radial-gradient(700px 540px at 96% 16%, rgba(232, 164, 96, 0.26), transparent 60%),
+    radial-gradient(560px 460px at 62% 92%, rgba(98, 89, 189, 0.3), transparent 66%),
+    linear-gradient(180deg, #201d30 0%, #14111d 100%);
 }
 
 /* ============================================================
@@ -226,6 +241,10 @@ html.fs-l { font-size: 17.5px; }
    BASIS
    ============================================================ */
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+/* Keine Scrollleisten: In einer App stoert der Balken. Die weichen Ausblend-
+   kanten oben/unten an main uebernehmen den Hinweis, dass Inhalt weitergeht. */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }
 [hidden] { display: none !important; }
 html { touch-action: manipulation; -webkit-text-size-adjust: 100%; } /* kein Pinch-/Doppeltipp-Zoom */
 
@@ -705,7 +724,7 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 /* --- Quiz-Karte: größter Radius + stärkste Elevation = oberste Ebene --- */
 .card {
   position: relative;
-  background: var(--surface-elevated);
+  background: var(--surface-card);
   -webkit-backdrop-filter: var(--blur-lg);
   backdrop-filter: var(--blur-lg);
   border: 1px solid var(--glass-brd);
