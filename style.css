@@ -339,18 +339,21 @@ main {
   font-size: var(--fs-caption); font-weight: var(--fw-medium); color: var(--text-3);
   display: inline-flex; align-items: center; gap: 5px; text-align: center;
 }
-.streak-lbl svg { width: 16px; height: 16px; fill: var(--mustard); stroke: none; flex: none; }
+.streak-lbl svg { width: 19px; height: 19px; fill: var(--mustard); stroke: none; flex: none; }
 /* Flackert nur bei laufendem Streak (Klasse kommt aus renderHome).
-   Ursprung unten, damit es wie eine Flamme wirkt und nicht wie Zappeln. */
+   Ursprung unten, damit es lodert statt zu zappeln. Leichte Drehung + Glimmen
+   ueber drop-shadow: auf einem 19px-Icon ist das billig, auf grossen Flaechen
+   waere es das nicht. */
 .streak-lbl.live svg {
-  transform-origin: 50% 80%;
-  animation: flameFlicker 3s ease-in-out infinite;
+  transform-origin: 50% 85%;
+  animation: flameFlicker 1.9s ease-in-out infinite;
 }
 @keyframes flameFlicker {
-  0%, 100% { transform: scale(1);      opacity: 1;   }
-  30%      { transform: scale(1.14);   opacity: .82; }
-  55%      { transform: scale(.96);    opacity: 1;   }
-  78%      { transform: scale(1.07);   opacity: .9;  }
+  0%, 100% { transform: scale(1)    rotate(-2deg);   filter: drop-shadow(0 0 1px var(--mustard)); }
+  22%      { transform: scale(1.24) rotate(2.5deg);  filter: drop-shadow(0 0 7px var(--mustard)); }
+  42%      { transform: scale(1.04) rotate(-1deg);   filter: drop-shadow(0 0 3px var(--mustard)); }
+  68%      { transform: scale(1.32) rotate(1.5deg);  filter: drop-shadow(0 0 9px var(--mustard)); }
+  85%      { transform: scale(1.1)  rotate(-1.5deg); filter: drop-shadow(0 0 4px var(--mustard)); }
 }
 
 /* Fortschrittsring */
