@@ -35,7 +35,12 @@ Stack: Vanilla HTML/CSS/JS, keine Frameworks.
   Dunkelmodus, **Tagesziel** (10/20/30/50).
 - **Eigene Vokabeln:** in-App hinzufügen/löschen (`customVocab`), Suche/Filter in der Liste.
 - **Verben:** 18 Verben × Presente/Indefinido/Perfecto/**Condicional** + **Sonderfälle** gustar/haber.
-- Basis: 96 Vokabeln (8 Kategorien), 🇪🇸↔🇩🇪, offline, Home-Screen-Icon.
+- Basis: **294 Vokabeln (11 Kategorien)**, 🇪🇸↔🇩🇪, offline, Home-Screen-Icon.
+  Themen: Básico · Verbos · Personas · Tiempo · Lugares · **Comida** · **Frutas y verduras** ·
+  **La cocina** · **La casa** · Ubicación · El cuerpo.
+  Quellen der vier Essens-/Wohn-Themen: [[uni/spanisch/Vokabeln/Unit-4-Hogar-dulce-hogar]] und
+  [[uni/spanisch/Vokabeln/Unit-7-Comes-de-todo]] (Aula Internacional Plus 2, A2).
+  Zeilen mit `// +` in `vocab.js` sind Alltagsergänzungen, die **nicht** im Kursglossar stehen.
 - **Keine Haptik** — iOS Safari unterstützt `navigator.vibrate()` nicht, deshalb bewusst weggelassen.
 
 ## Design-System
@@ -50,6 +55,17 @@ Regel: **außerhalb dieses Blocks keine hartkodierten Werte** — immer `var(--t
 
 ## Dateien
 - `index.html` Struktur · `style.css` Design-Tokens + Design · `app.js` Logik · `vocab.js` **Wortschatz** · `verbs.js` **Verben + Sonderfälle**
+
+## Regeln für neue Vokabeln
+- **Kein doppelter `es`-Schlüssel.** `progress` schlüsselt darauf, `vocabByKey()` findet nur den ersten
+  Treffer — Dubletten teilen sich lautlos den Lernfortschritt. Zwei Bedeutungen → **ein** Eintrag
+  (`la planta` = „die Etage / die Pflanze").
+- **Keine zwei Wörter mit identischer deutscher Bedeutung**, sonst ist die Frage Richtung
+  Deutsch→Spanisch nicht eindeutig lösbar. Synonyme in einen Eintrag mit `/`
+  (`la nevera / el frigorífico`) — `writeCorrect()` akzeptiert beim Schreiben jede Variante.
+  Ausnahme: echter Bedeutungsunterschied im Klammerzusatz (`ser` „sein (dauerhaft)" vs. `estar`).
+- Substantive **immer mit Artikel**; `stripFluff()` ignoriert ihn beim Schreib-Vergleich.
+- Reihenfolge der Themen = Reihenfolge des ersten Auftretens in `vocab.js` (`allCats`).
 - `manifest.json` / `sw.js` PWA-Setup (Cache-Version bei jedem Deploy hoch) · `icon-*.png` Icons
 
 ## localStorage-Keys
