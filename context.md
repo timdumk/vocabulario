@@ -21,11 +21,22 @@ Stack: Vanilla HTML/CSS/JS, keine Frameworks.
 
 ## Stand (Redesign abgeschlossen — 2026-07-29)
 - **Navigation:** 4 Tabs — **Home** · Vokabeln · Fehler · Mehr. Der frühere „Üben"-Tab ist weg.
+- **Vokabel-Liste navigierbar** (seit v38): waagerechte **Themen-Chips** über der Suche (21 Stück:
+  Alle + 19 Themen + Verben) filtern die Liste, dazu **klebende Gruppenüberschriften**.
+  Vorher waren 797 Zeilen in 20 Gruppen praktisch nur noch über die Suche erreichbar.
+  Eigener Zustand **`listCat`** — bewusst getrennt von `cat`/`selectedCat` (Übungsfilter).
+- **Wort-Detailansicht** (seit v38): Antippen einer Listenzeile öffnet ein Sheet mit Wort, Bedeutung,
+  Thema, Beispielsatz, **Leitner-Box als 5 Punkte**, richtig/falsch-Zähler, nächster Fälligkeit und
+  Markieren-Stern. Reine Anzeige, kein Aktionsknopf. Stern und Papierkorb in der Zeile öffnen es nicht.
 - **Home:** Begrüßung + Datum, **Tages-Streak**-Kachel, **Tagesziel-Ring** (SVG, Verlauf),
   dominante CTA „Weiter lernen", Vorschau der letzten 3 Fehler.
 - **Übung = Vollbild-Flow** ohne Tab-Bar: Start-Sheet (Modus/Übungsart/Filter/Länge) →
   Fortschrittsbalken + X mit Bestätigung → **Zusammenfassung** (Trefferquote, geübt/richtig/falsch).
   Rundenlänge **10 Fragen** oder **Endlos**.
+  Unter dem Balken eine **Kontextzeile** (`La casa · Wahl` bzw. `Verben · Indefinido · Tabelle`);
+  im Fokus-Modus ausgeblendet, dort trägt das Banner den Kontext.
+  Beim Weitertippen **gleitet die Karte seitlich** (alt nach links raus, neu von rechts rein);
+  ein zweiter Tipp währenddessen ist gesperrt, sonst überspränge er eine Frage.
 - **Übungsarten:** Wahl (Multiple Choice) · Schreiben · Karten (Vokabeln) / **Tabelle** (Verben) · **Lücke** (Satz mit fehlendem Wort).
 - **Verben lernen mit:** Konjugation nutzt seit v33 dieselbe Wiederholungslogik wie Vokabeln.
   Schlüssel `verb:<infinitiv>:<zeit>` (18 × 4 = 72) und `special:<infinitiv>` (gustar, haber).
@@ -64,6 +75,18 @@ Regel: **außerhalb dieses Blocks keine hartkodierten Werte** — immer `var(--t
 - Themes: `body.dark` · Akzente `body.accent-*` (dunkel gewinnt über `body.dark.accent-*`)
 - **Fallstrick:** Tokens nie über andere Tokens aliasen (`--a: var(--b)`) — das wird schon auf `:root`
   aufgelöst und ignoriert spätere Theme-Overrides.
+- **Klebende Überschriften:** `main` hat bewusst **kein `padding-top`** (die Luft oben sitzt in `.view`).
+  Ein `padding-top` am Scrollcontainer schlägt auf die Klebeposition durch — `top: var(--fade)` klebte
+  dann bei 42px statt 18px und Text liefe sichtbar darüber. Jede Gruppe braucht ausserdem eine eigene
+  Hülle `.group`, sonst kleben am Ende ALLE Überschriften gleichzeitig übereinander.
+- **`--surface-sticky`:** eigenes, fast deckendes Token nur für diese Überschriften. Weichzeichner
+  allein verdeckt den Text darunter nicht — mit `--surface-1` (38%) las man ihn glatt durch.
+- **Weicher Theme-/Akzentwechsel:** `themeFade()` setzt ~320ms die Klasse `theming` auf `<html>`.
+  Die Regel steht **vor** dem `prefers-reduced-motion`-Block, damit dessen `transition: none !important`
+  weiterhin gewinnt.
+- **Kartenwechsel:** `--dur-swap` in `style.css` und `SWAP_MS` in `app.js` gehören zusammen.
+  `.card-in` (federt von unten) bleibt für die erste Frage, Zusammenfassung und Dialog;
+  `.card-slide` ist der Wechsel von rechts.
 
 ## Dateien
 - `index.html` Struktur · `style.css` Design-Tokens + Design · `app.js` Logik
@@ -88,7 +111,11 @@ Regel: **außerhalb dieses Blocks keine hartkodierten Werte** — immer `var(--t
 `progress` (Leitner) · `customVocab` · `marked` · `errors` · `stats` (Antwort-Streak) ·
 **`daily`** (Tagesziel/Tages-Streak: date/count/goal/streak/lastGoalDate/best) ·
 **`milestones`** · **`len`** (Rundenlänge, 0 = endlos) · **`sfx`** · **`accent`** · **`fontSize`** ·
-`cat` · `theme` · `srs` · `autoSpeak` · `practice` (mc/write/cards/table/**gap**) · `mode`/`dir`/`tense`/`type`
+`cat` · **`listCat`** (Themenfilter der Liste — NICHT der Übungsfilter) ·
+`theme` · `srs` · `autoSpeak` · `practice` (mc/write/cards/table/**gap**) · `mode`/`dir`/`tense`/`type`
+
+`listCat` steht bewusst nicht in `DATA_KEYS` (Export/Import): es ist eine flüchtige Ansichts-
+einstellung, kein Fortschritt.
 
 `daily` enthält seit v33 zusätzlich **`done`** — Liste der Tage mit erreichtem Ziel (Wochen-Kalender, max. 60).
 
@@ -115,5 +142,8 @@ python3 -m http.server 8123
   Tages-Streak + Tagesziel, Meilensteine, Akzentpaletten, Schriftgröße, Soundeffekte
 - [x] **Ausbau 2026-07-31:** Verben im Lernalgorithmus · Export/Import · 8 Kurseinheiten (294 → 779 Wörter) ·
   160 Beispielsätze · Lückentext · Nachdrill · Wochen-Kalender
+- [x] **Design-Updates 2026-07-31 (v38):** Themen-Chips + klebende Überschriften in der Liste ·
+  Wort-Detailansicht · seitlicher Kartenwechsel · Antwort-Feedback (Puls/Zittern) ·
+  weicher Theme-/Akzentwechsel · Leerzustände · Kontextzeile im Übungsschirm
 - [ ] **LATER — Backend-Meilenstein** (bewusst zurückgestellt): Login + Geräte-Sync + KI-Beispielsätze.
   Empfohlener Stack: Supabase (Auth + Postgres + Edge Functions). Beendet „gratis-statisch".

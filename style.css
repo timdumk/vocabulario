@@ -60,6 +60,10 @@
                                                    gelesen, deshalb mehr Deckkraft */
   --surface-solid: #fffdf7;                /* Fallback ohne Transparenz */
   --surface-sunken: #efe4cc;               /* Vertiefungen: Balken-Tracks, Switch */
+  --surface-sticky: rgba(248, 241, 227, .97);   /* NUR klebende Gruppenüberschriften:
+                                                   muss den Text darunter wirklich
+                                                   verdecken — Weichzeichner allein
+                                                   reicht dafür nicht. */
 
   /* --- Text-Ebenen --- */
   --text: #2f2a25;      /* primär */
@@ -102,6 +106,8 @@
   --dur-mid: .24s;
   --dur-slow: .36s;
   --dur-grow: .8s;   /* Fortschritt, der sichtbar aufbaut: Ring, Themen-Balken */
+  --dur-swap: .17s;  /* Karte gleitet raus, bevor die nächste Frage kommt.
+                        Gegenstück: SWAP_MS in app.js — beide zusammen ändern. */
 
   --tabbar-h: 64px;
   /* Platz, den die schwebende Tabbar unten belegt (Position + Höhe).
@@ -136,6 +142,7 @@ body.dark {
   --surface-card: rgba(128, 118, 138, .34);
   --surface-solid: #262019;
   --surface-sunken: #322a20;
+  --surface-sticky: rgba(28, 23, 37, .96);
 
   --text: #f0e9dc;
   --text-2: #b9ac96;
@@ -292,8 +299,11 @@ body {
 main {
   flex: 1;
   overflow-y: auto;
-  /* Oben so viel Luft, dass Titel NICHT in der Ausblendkante liegen. */
-  padding-top: var(--sp-5);
+  /* KEIN padding-top hier — die Luft oben sitzt in .view.
+     Grund: klebende Gruppenüberschriften richten sich am Scrollcontainer aus,
+     und ein padding-top schlägt auf ihre Klebeposition durch (top: 18px würde
+     bei 42px kleben und Text darüber sichtbar durchlaufen lassen). Ohne
+     padding trifft top: var(--fade) genau die Ausblendkante. */
   padding-bottom: calc(var(--tabbar-space) + var(--sp-5));
   /* Weiche Ausblendkanten oben UND unten: Inhalt loest sich vor der
      schwebenden Tabbar auf, statt dahinter durchzuscheinen. */
@@ -306,7 +316,9 @@ main {
     #000 calc(100% - var(--tabbar-space) - 20px),
     transparent calc(100% - var(--tabbar-space) + 4px));
 }
-.view { display: flex; flex-direction: column; gap: var(--sp-4); }
+/* Luft nach oben — früher padding-top auf main, siehe Begründung dort.
+   So viel, dass Titel NICHT in der Ausblendkante liegen. */
+.view { display: flex; flex-direction: column; gap: var(--sp-4); padding-top: var(--sp-5); }
 
 /* Tab-Wechsel: weiches Auf-Blenden statt hartem Schnitt */
 @keyframes viewIn {
@@ -504,10 +516,16 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   display: flex; flex-direction: column;
   padding: env(safe-area-inset-top) var(--sp-4) calc(env(safe-area-inset-bottom) + var(--sp-3));
 }
+/* Obere Reihe (X, Balken, Zähler) plus Kontextzeile darunter. */
 .practice-top {
-  display: flex; align-items: center; gap: var(--sp-3);
+  display: flex; flex-direction: column; gap: 6px;
   padding: var(--sp-4) 0 var(--sp-2);
   flex: none;
+}
+.practice-bar { display: flex; align-items: center; gap: var(--sp-3); }
+.practice-ctx {
+  text-align: center; font-size: var(--fs-caption); font-weight: var(--fw-medium);
+  color: var(--text-3); letter-spacing: .3px;
 }
 .icon-btn {
   background: none; border: none; cursor: pointer; padding: var(--sp-1);
@@ -552,6 +570,20 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .card.card-in { animation: cardIn var(--dur-slow) var(--spring) both; }
 
+/* Kartenwechsel: alte Karte nach links raus, neue von rechts rein.
+   Bewusst getrennt von cardIn — das federt beim ERSTEN Aufbau einer Runde
+   weiterhin von unten und wird auch von Zusammenfassung und Dialog genutzt. */
+@keyframes cardOut {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateX(-28px) scale(.98); }
+}
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: none; }
+}
+.card.card-out { animation: cardOut var(--dur-swap) var(--spring) both; }
+.card.card-slide { animation: cardSlideIn var(--dur-mid) var(--spring) both; }
+
 /* --- Start-Sheet: Übung einrichten --- */
 .sheet-back {
   position: fixed; inset: 0; z-index: 30;
@@ -588,6 +620,49 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .sheet .btn { margin-top: var(--sp-1); }
 .lengths .mode.active { background: var(--wine); color: var(--on-accent); }
+
+/* --- Wort-Detail (zweites Sheet): reine Anzeige --- */
+.ws-head { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.ws-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ws-es {
+  font-size: var(--fs-title); font-weight: var(--fw-strong);
+  line-height: var(--lh-tight); word-break: break-word;
+}
+.ws-de { color: var(--text-2); font-size: var(--fs-label); }
+.ws-head .row-star { flex: none; padding: var(--sp-1); }
+.ws-cat {
+  align-self: flex-start;
+  background: var(--surface-2); border: 1px solid var(--glass-brd); border-radius: var(--r-pill);
+  padding: 4px var(--sp-3);
+  font-size: var(--fs-caption); font-weight: var(--fw-medium); color: var(--text-2);
+}
+.ws-h {
+  font-size: var(--fs-caption); font-weight: var(--fw-strong);
+  text-transform: uppercase; letter-spacing: .6px;
+  color: var(--wine); margin-top: var(--sp-1);
+}
+.ws-none { color: var(--text-3); font-size: var(--fs-label); }
+.ws-boxes { display: flex; align-items: center; gap: var(--sp-3); }
+.ws-dots { display: flex; gap: 6px; }
+.ws-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface-sunken); border: 1px solid var(--line);
+}
+.ws-dot.on { background: var(--mustard); border-color: transparent; }
+.ws-boxlbl { font-size: var(--fs-caption); font-weight: var(--fw-medium); color: var(--text-2); }
+.ws-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+.ws-stat {
+  background: var(--surface-2); border: 1px solid var(--glass-brd); border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-2); text-align: center; box-shadow: var(--elev-1);
+}
+.ws-stat .val {
+  font-size: var(--fs-lead); font-weight: var(--fw-strong);
+  color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.ws-stat .lbl {
+  font-size: var(--fs-micro); font-weight: var(--fw-strong); color: var(--text-3);
+  margin-top: var(--sp-1); text-transform: uppercase; letter-spacing: .4px;
+}
 
 /* --- Zusammenfassung --- */
 .summary {
@@ -814,6 +889,27 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .options button.wrong { border-color: var(--bad); background: var(--bad-bg); }
 .options button:disabled { cursor: default; }
 
+/* Antwort-Feedback: kurzer Puls bei richtig, dezentes Zittern bei falsch.
+   Kein JS nötig — .correct/.wrong werden beim Antworten ohnehin gesetzt, und
+   eine Animation läuft beim Hinzufügen der Klasse einmal ab. */
+@keyframes answerPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes answerShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  50%      { transform: translateX(4px); }
+  75%      { transform: translateX(-2px); }
+}
+.options button.correct, .write-input.correct, .conj-input.correct {
+  animation: answerPulse var(--dur-mid) var(--spring);
+}
+.options button.wrong, .write-input.wrong, .conj-input.wrong {
+  animation: answerShake .25s ease;
+}
+
 .feedback { text-align: center; min-height: 22px; font-size: var(--fs-label); font-weight: var(--fw-medium); }
 .feedback.ok { color: var(--ok); }
 .feedback.bad { color: var(--bad); }
@@ -867,18 +963,55 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   box-shadow: var(--elev-2);
 }
 
+/* --- Themen-Chips über der Vokabel-Liste --- */
+/* Waagerecht scrollbar. Bewusst OHNE negative Ränder bis an den Bildschirmrand:
+   der Überstand machte main um 16px seitlich verschiebbar. */
+.cat-chips {
+  display: flex; gap: var(--sp-2);
+  overflow-x: auto; overflow-y: hidden;
+  padding: 2px 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.cat-chips::-webkit-scrollbar { display: none; }
+.cat-chip {
+  flex: none; white-space: nowrap; cursor: pointer;
+  background: var(--surface-2); color: var(--text-2);
+  -webkit-backdrop-filter: var(--blur-sm); backdrop-filter: var(--blur-sm);
+  border: 1px solid var(--glass-brd); border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-caption); font-weight: var(--fw-medium);
+  box-shadow: var(--elev-1);
+}
+.cat-chip.on {
+  background: var(--wine); color: var(--on-accent);
+  border-color: transparent; font-weight: var(--fw-strong);
+}
+
 /* --- Listen (Vokabeln / Fehler) --- */
+/* Klebt beim Scrollen oben fest. top MUSS var(--fade) sein, nicht 0: die
+   obersten 18px von main sind ausmaskiert, dort wäre die Überschrift halb
+   durchsichtig. Eigener Hintergrund, sonst scrollt Text sichtbar darunter. */
 .group-title {
+  position: sticky; top: var(--fade); z-index: 5;
   font-size: var(--fs-caption); font-weight: var(--fw-strong);
   text-transform: uppercase; letter-spacing: .6px;
-  color: var(--text-3); padding: var(--sp-3) var(--sp-1) 6px;
+  color: var(--text-3);
+  padding: var(--sp-2) var(--sp-3) 6px;
+  margin-bottom: var(--sp-1);
+  background: var(--surface-sticky);
+  -webkit-backdrop-filter: var(--blur-sm); backdrop-filter: var(--blur-sm);
+  border-radius: var(--r-sm);
 }
+.group-title + .row { margin-top: 0; }
 .row {
   display: flex; align-items: center; gap: var(--sp-3);
   background: var(--surface-2); border: 1px solid var(--glass-brd); border-radius: var(--r-sm);
   padding: 10px var(--sp-3); margin-bottom: 6px;
   box-shadow: var(--elev-1);
 }
+.row.tappable { cursor: pointer; }
 .row .es { font-weight: var(--fw-medium); }
 .row .de { color: var(--text-2); font-size: var(--fs-caption); }
 .row .txt { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -894,7 +1027,18 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .row-star.pop svg { animation: starPop var(--dur-slow) var(--spring); }
 
-.empty { text-align: center; color: var(--text-3); padding: 40px var(--sp-5); font-size: var(--fs-label); }
+/* Leerzustand: Icon + Aussage + Hinweis. Nüchtern, keine Illustrationen. */
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  text-align: center; color: var(--text-3);
+  padding: 40px var(--sp-5); font-size: var(--fs-label);
+}
+.empty svg {
+  width: 40px; height: 40px; fill: none; stroke: currentColor;
+  stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .5;
+}
+.empty-title { font-weight: var(--fw-medium); color: var(--text-2); }
+.empty-hint { font-size: var(--fs-caption); line-height: var(--lh-normal); }
 
 /* Fehler-Tab: primäre Aktion oben, danach Abstand zur Liste */
 #fehlerContent .cta { margin-bottom: var(--sp-2); }
@@ -1088,7 +1232,7 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 /* ============================================================
    MICRO-INTERAKTIONEN — Druck-Effekt, federnd und kurz
    ============================================================ */
-.options button, .next, .btn, .chip, .mode, .tab, .panel-row,
+.options button, .next, .btn, .chip, .cat-chip, .mode, .tab, .panel-row,
 .mark, .speak, .row-star, .row-del, .banner-x, .switch, .addbox summary {
   transition:
     transform var(--dur-fast) var(--spring),
@@ -1099,10 +1243,14 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
     filter var(--dur-fast) ease;
 }
 .mode.active { box-shadow: var(--elev-1); }
-.options button:active, .next:active, .btn:active, .chip:active,
+.options button:active, .next:active, .btn:active, .chip:active, .cat-chip:active,
 .mode:active, .tab:active, .panel-row:active {
   transform: scale(.94); filter: brightness(.94); box-shadow: none;
 }
+/* Listenzeilen öffnen die Detailansicht — also auch drückbar, aber schwächer:
+   sie sind flächig und würden bei .94 sichtbar springen. */
+.row.tappable { transition: transform var(--dur-fast) var(--spring), box-shadow var(--dur-fast) ease; }
+.row.tappable:active { transform: scale(.985); box-shadow: none; }
 .panel-row:active { background: var(--surface-1); }
 .mark:active, .speak:active, .row-star:active, .row-del:active, .banner-x:active { transform: scale(.8); }
 .switch:active { transform: scale(.93); }
@@ -1110,6 +1258,21 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 /* Tabs blenden die Farbe langsamer über als der Rest (0,12s war kaum sichtbar).
    Muss NACH der Sammelregel oben stehen; Druck-Effekt bleibt erhalten. */
 .tab { transition: transform var(--dur-fast) var(--spring), color var(--dur-slow) ease; }
+
+/* Weicher Wechsel von Theme und Akzentfarbe. Die Klasse liegt nur ~320ms auf
+   <html> (themeFade in app.js) — dauerhaft würde sie die Transitions oben
+   überschreiben. Steht bewusst VOR dem prefers-reduced-motion-Block, damit
+   dessen `transition: none !important` weiterhin gewinnt. */
+html.theming, html.theming *, html.theming *::before, html.theming *::after {
+  transition:
+    background-color var(--dur-slow) ease,
+    background-image var(--dur-slow) ease,
+    color var(--dur-slow) ease,
+    border-color var(--dur-slow) ease,
+    fill var(--dur-slow) ease,
+    stroke var(--dur-slow) ease,
+    box-shadow var(--dur-slow) ease;
+}
 
 /* Barrierefreiheit: Animationen reduzieren, wenn gewünscht */
 @media (prefers-reduced-motion: reduce) {

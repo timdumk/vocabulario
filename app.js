@@ -14,6 +14,10 @@ function rebuildWords() {
 }
 rebuildWords();
 let selectedCat = localStorage.getItem("cat") || "Alle";   // Einzelauswahl: "Alle" oder ein Kategoriename
+// Themenfilter DER LISTE — bewusst getrennt von selectedCat. Würde man den
+// Übungsfilter mitbenutzen, änderte Blättern in der Liste unbemerkt die
+// Einstellung der nächsten Übungsrunde.
+let listCat = localStorage.getItem("listCat") || "Alle";
 let listeQuery = "";
 let tenseFilter = localStorage.getItem("tense") || "Alle";
 let typeFilter = localStorage.getItem("type") || "Alle";
@@ -76,6 +80,7 @@ const ICONS = {
   alert: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><line x1="12" y1="7.6" x2="12" y2="12.8"/><circle cx="12" cy="16.2" r=".9" fill="currentColor" stroke="none"/></svg>',
   check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.6 4.5L19 7.5"/></svg>',
   cycle: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.2V8h-3.8"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><line x1="15.7" y1="15.7" x2="20" y2="20"/></svg>',
 };
 
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -154,6 +159,31 @@ function replayAnim(node, cls = "anim-in") {
   node.classList.add(cls);
 }
 
+// ============================================================
+//  Karten-Übergang zwischen zwei Fragen
+//  Alte Karte gleitet nach links raus, danach wird die neue Frage gerendert und
+//  gleitet von rechts herein (setHeader setzt dafür .card-slide statt .card-in).
+//  SWAP_MS spiegelt --dur-swap in style.css — beide zusammen ändern.
+// ============================================================
+const SWAP_MS = 170;
+let swapping = false;   // Doppeltipp-Sperre: sonst überholen sich zwei Fragen
+let slideIn = false;    // nächste Karte von rechts hereinziehen statt federn
+function withSwap(fn) {
+  if (reduceMotion()) { fn(); return; }
+  if (swapping) return;
+  swapping = true;
+  const card = $("card");
+  card.classList.remove("card-in", "card-slide");
+  replayAnim(card, "card-out");
+  setTimeout(() => {
+    card.classList.remove("card-out");
+    swapping = false;
+    slideIn = true;
+    fn();
+    slideIn = false;   // falls fn() gar keine Karte gerendert hat (Zusammenfassung)
+  }, SWAP_MS);
+}
+
 // Endwert erst im nächsten Frame setzen, damit die CSS-Transition greift.
 function growTo(setFinal, setStart) {
   if (reduceMotion()) { setFinal(); return; }
@@ -169,6 +199,18 @@ function applyAccent() {
 }
 function applyFontSize() {
   FONT_SIZES.forEach((f) => document.documentElement.classList.toggle("fs-" + f, f === fontSize && f !== "m"));
+}
+
+// Weicher Farbwechsel beim Umschalten von Theme oder Akzent: kurzzeitig eine
+// Klasse auf <html>, die Farbübergänge erlaubt. Nur für den Wechsel selbst —
+// dauerhaft würde sie jede andere Transition der Seite überschreiben.
+let themeTimer = null;
+function themeFade() {
+  if (reduceMotion()) return;
+  const root = document.documentElement;
+  root.classList.add("theming");
+  clearTimeout(themeTimer);
+  themeTimer = setTimeout(() => root.classList.remove("theming"), 320);
 }
 
 // ============================================================
@@ -417,11 +459,12 @@ function setHeader(labelText, wordText, showMark, meta) {
   // Beispielsatz der VORHERIGEN Frage entfernen. Er haengt als Geschwister an
   // feedbackEl, nicht in optionsEl — ohne das bleibt er stehen und stapelt sich.
   $("card").querySelectorAll(".sentence").forEach((n) => n.remove());
-  // Karte federnd einblenden (Slide + Fade); Animation neu starten erzwingen.
+  // Karte einblenden; Animation neu starten erzwingen. Nach einem Kartenwechsel
+  // zieht sie von rechts herein (slideIn), sonst federt sie wie bisher von unten.
   const card = $("card");
-  card.classList.remove("card-in");
+  card.classList.remove("card-in", "card-slide");
   void card.offsetWidth;
-  card.classList.add("card-in");
+  card.classList.add(slideIn ? "card-slide" : "card-in");
 }
 function render(labelText, wordText, choices, correct, showMark, meta) {
   correctText = correct;
@@ -1000,9 +1043,24 @@ $("confirmYes").addEventListener("click", () => {
   if (cb) cb();
 });
 
+// Kontextzeile unter dem Fortschrittsbalken: womit übe ich gerade?
+// Beschriftungen kommen aus PRACTICE_LABEL, damit sie nur an einer Stelle stehen.
+function practiceCtx() {
+  const art = PRACTICE_LABEL[practice] || "";
+  if (mode === "verbs") {
+    const zeit = typeFilter === "special" ? "Sonderfälle"
+      : (tenseFilter === "Alle" ? "Alle Zeiten" : tenseFilter);
+    return ["Verben", zeit, art].filter(Boolean).join(" · ");
+  }
+  return [selectedCat === "Alle" ? "Alle Themen" : selectedCat, art].filter(Boolean).join(" · ");
+}
+
 // --- Fortschrittsanzeige oben ---
 function updateProgress() {
   if (!session) return;
+  const ctx = $("practiceCtx");
+  ctx.textContent = practiceCtx();
+  ctx.hidden = focusMode;   // im Fokus-Modus trägt das Banner den Kontext
   const bar = $("progressBar"), fill = $("progressFill"), cnt = $("progressCount");
   if (session.endless) {
     bar.hidden = true;
@@ -1197,7 +1255,9 @@ $("typeToggle").addEventListener("click", () => {
   refreshQuestion();
 });
 
-nextBtn.addEventListener("click", advance);
+// Kartenwechsel nur beim echten Weiter-Tippen — interne advance()-Aufrufe
+// (Nachdrill mit unauflösbarem Schlüssel) sollen nicht doppelt animieren.
+nextBtn.addEventListener("click", () => withSwap(advance));
 
 // --- Liste: Suche + eigene Vokabeln ---
 $("listeSearch").addEventListener("input", (e) => { listeQuery = e.target.value; renderListe(); });
@@ -1218,7 +1278,7 @@ function greeting() {
   if (h < 19) return "Buenas tardes";
   return "Buenas noches";
 }
-const PRACTICE_LABEL = { mc: "Auswahl", write: "Schreiben", cards: "Karten", table: "Tabelle" };
+const PRACTICE_LABEL = { mc: "Auswahl", write: "Schreiben", cards: "Karten", table: "Tabelle", gap: "Lücke" };
 function ctaSubLabel() {
   const what = mode === "verbs" ? "Verben" : (selectedCat === "Alle" ? "Vokabeln" : selectedCat);
   return `${what} · ${PRACTICE_LABEL[practice] || ""}`;
@@ -1389,11 +1449,22 @@ function renderHome() {
   }
 }
 
+// Leerzustand: Icon + Aussage + Hinweis, was jetzt hilft. Bewusst nüchtern —
+// keine Maskottchen. Ersetzt die frühere nackte Textzeile.
+function emptyState(iconKey, titel, hinweis) {
+  const b = el("div", "empty");
+  b.insertAdjacentHTML("beforeend", ICONS[iconKey]);
+  b.appendChild(el("p", "empty-title", titel));
+  if (hinweis) b.appendChild(el("p", "empty-hint", hinweis));
+  return b;
+}
+
 // --- View: Alle Vokabeln ---
 // opts.key: Lernschluessel, falls er vom spanischen Wort abweicht (Verben).
 function vocabRow(w, opts = {}) {
   const key = opts.key || w.es;
-  const row = el("div", "row");
+  const row = el("div", "row tappable");
+  row.addEventListener("click", () => openWordSheet(key));
   const txt = el("div", "txt");
   txt.appendChild(el("span", "es", w.es));
   txt.appendChild(el("span", "de", w.de));
@@ -1407,7 +1478,8 @@ function vocabRow(w, opts = {}) {
   // Der gefüllte Stern zeigt „markiert" bereits an — kein zusätzliches Badge nötig.
   const star = el("button", "row-star" + (marked.has(key) ? " on" : ""));
   star.innerHTML = ICONS.star;
-  star.addEventListener("click", () => {
+  star.addEventListener("click", (e) => {
+    e.stopPropagation();   // sonst öffnet der Stern zusätzlich die Detailansicht
     const on = !marked.has(key);
     if (on) marked.add(key); else marked.delete(key);
     saveSets();
@@ -1423,7 +1495,7 @@ function vocabRow(w, opts = {}) {
   if (opts.onDelete) {
     const del = el("button", "row-del");
     del.innerHTML = ICONS.trash;
-    del.addEventListener("click", opts.onDelete);
+    del.addEventListener("click", (e) => { e.stopPropagation(); opts.onDelete(); });
     row.appendChild(del);
   }
   return row;
@@ -1446,33 +1518,179 @@ function deleteCustom(es) {
   renderListe();
 }
 
+// Themen-Chips über der Suche. Die Leiste wird nur neu gebaut, wenn sich die
+// Themen wirklich geändert haben (eigene Vokabel mit neuem Thema) — sonst
+// spränge sie bei jedem Tastendruck in der Suche zurück an den Anfang.
+const LIST_CATS = () => ["Alle", ...allCats, "Verben"];
+let listCatsSig = "";
+function renderListCats() {
+  const bar = $("listCats");
+  const cats = LIST_CATS();
+  const sig = cats.join("|");
+  const neu = sig !== listCatsSig;
+  if (neu) {
+    listCatsSig = sig;
+    bar.innerHTML = "";
+    cats.forEach((c) => {
+      const b = el("button", "cat-chip", c === "Alle" ? "Alle" : c);
+      b.dataset.cat = c;
+      b.addEventListener("click", () => {
+        listCat = c;
+        localStorage.setItem("listCat", c);
+        renderListe();
+        centerChip();
+      });
+      bar.appendChild(b);
+    });
+  }
+  // Gewähltes Thema kann inzwischen weggefallen sein (eigene Vokabel gelöscht).
+  if (!cats.includes(listCat)) { listCat = "Alle"; localStorage.setItem("listCat", listCat); }
+  bar.querySelectorAll(".cat-chip").forEach((b) => b.classList.toggle("on", b.dataset.cat === listCat));
+  if (neu) centerChip();   // gemerktes Thema beim ersten Öffnen sichtbar machen
+}
+// Aktiven Chip in die Mitte holen — bei 21 Chips liegt er sonst oft ausserhalb.
+function centerChip() {
+  const bar = $("listCats");
+  const on = bar.querySelector(".cat-chip.on");
+  if (!on || !bar.clientWidth) return;
+  bar.scrollTo({ left: on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2, behavior: reduceMotion() ? "auto" : "smooth" });
+}
+
 function renderListe() {
+  renderListCats();
   const box = $("listeContent");
   box.innerHTML = "";
   const q = listeQuery.trim().toLowerCase();
   const match = (a, b) => !q || a.toLowerCase().includes(q) || b.toLowerCase().includes(q);
   const isCustom = (w) => customVocab.some((c) => c.es === w.es);
+  const alle = listCat === "Alle";
+  let treffer = 0;
 
-  allCats.forEach((c) => {
-    const words = WORDS.filter((w) => w.cat === c && match(w.es, w.de));
-    if (!words.length) return;
-    box.appendChild(el("div", "group-title", c));
-    words.forEach((w) => box.appendChild(vocabRow(w, isCustom(w) ? { onDelete: () => deleteCustom(w.es) } : {})));
-  });
+  // Jede Gruppe bekommt eine eigene Hülle. Ohne sie teilen sich alle
+  // Überschriften denselben Container und kleben am Ende ALLE gleichzeitig
+  // uebereinander bei --fade. So schiebt die nächste die vorige sauber raus.
+  const gruppe = (titel) => {
+    const g = el("div", "group");
+    g.appendChild(el("div", "group-title", titel));
+    box.appendChild(g);
+    return g;
+  };
 
-  const verbs = VERBS.filter((v) => match(v.inf, v.de));
-  if (verbs.length) {
-    box.appendChild(el("div", "group-title", "Verben"));
-    verbs.forEach((v) => {
-      const row = el("div", "row");
-      const txt = el("div", "txt");
-      txt.appendChild(el("span", "es", v.inf));
-      txt.appendChild(el("span", "de", v.de + (v.type === "irregular" ? " · unregelmäßig" : "")));
-      row.appendChild(txt);
-      box.appendChild(row);
+  if (alle || listCat !== "Verben") {
+    allCats.filter((c) => alle || c === listCat).forEach((c) => {
+      const words = WORDS.filter((w) => w.cat === c && match(w.es, w.de));
+      if (!words.length) return;
+      treffer += words.length;
+      const g = gruppe(c);
+      words.forEach((w) => g.appendChild(vocabRow(w, isCustom(w) ? { onDelete: () => deleteCustom(w.es) } : {})));
     });
   }
+
+  if (alle || listCat === "Verben") {
+    const verbs = VERBS.filter((v) => match(v.inf, v.de));
+    if (verbs.length) {
+      treffer += verbs.length;
+      const g = gruppe("Verben");
+      verbs.forEach((v) => {
+        const row = el("div", "row");
+        const txt = el("div", "txt");
+        txt.appendChild(el("span", "es", v.inf));
+        txt.appendChild(el("span", "de", v.de + (v.type === "irregular" ? " · unregelmäßig" : "")));
+        row.appendChild(txt);
+        g.appendChild(row);
+      });
+    }
+  }
+
+  if (!treffer) {
+    box.appendChild(q
+      ? emptyState("search", `Keine Treffer für „${listeQuery.trim()}“`,
+          alle ? "Suche leeren oder anders schreiben." : "Suche leeren oder ein anderes Thema wählen.")
+      : emptyState("search", "Dieses Thema ist leer", "Wähle oben ein anderes Thema."));
+  }
 }
+
+// ============================================================
+//  Wort-Detail: reine Anzeige, kein Aktionsknopf.
+//  Aufbau und Animation vom Start-Sheet übernommen (.sheet-back/.sheet + .anim-in).
+// ============================================================
+function dueLabel(due) {
+  const diff = (due || 0) - Date.now();
+  if (diff <= 0) return "jetzt";
+  const min = Math.round(diff / 60e3);
+  if (min < 60) return min + " Min";
+  const std = Math.round(min / 60);
+  if (std < 24) return std + " Std";
+  const tage = Math.round(std / 24);
+  return tage + (tage === 1 ? " Tag" : " Tage");
+}
+function wsStat(val, lbl) {
+  const c = el("div", "ws-stat");
+  c.appendChild(el("div", "val", String(val)));
+  c.appendChild(el("div", "lbl", lbl));
+  return c;
+}
+function closeWordSheet() { $("wordSheet").hidden = true; }
+
+function openWordSheet(key) {
+  const w = itemByKey(key);
+  if (!w) return;
+  const box = $("wordSheetBody");
+  box.innerHTML = "";
+  box.appendChild(el("div", "sheet-grab"));
+
+  const head = el("div", "ws-head");
+  const txt = el("div", "ws-txt");
+  txt.appendChild(el("h2", "ws-es", w.es));
+  txt.appendChild(el("p", "ws-de", w.de));
+  head.appendChild(txt);
+  const star = el("button", "row-star" + (marked.has(key) ? " on" : ""));
+  star.setAttribute("aria-label", "Vokabel markieren");
+  star.innerHTML = ICONS.star;
+  star.addEventListener("click", () => {
+    const on = !marked.has(key);
+    if (on) marked.add(key); else marked.delete(key);
+    saveSets();
+    star.classList.toggle("on", on);
+    replayAnim(star, "pop");
+    // Liste im Hintergrund nachziehen, damit sie beim Schliessen stimmt.
+    if (view === "fehler") renderFehler(); else if (view === "liste") renderListe();
+  });
+  head.appendChild(star);
+  box.appendChild(head);
+  box.appendChild(el("span", "ws-cat", w.cat));
+
+  const satz = sentenceFor(key);
+  if (satz) {
+    const s = el("div", "sentence");
+    s.appendChild(el("span", "sentence-es", satz.es));
+    s.appendChild(el("span", "sentence-de", satz.de));
+    box.appendChild(s);
+  }
+
+  box.appendChild(el("div", "ws-h", "Lernstand"));
+  const p = progress[key];
+  if (!p) {
+    box.appendChild(el("p", "ws-none", "Noch nicht geübt"));
+  } else {
+    const boxRow = el("div", "ws-boxes");
+    const dots = el("div", "ws-dots");
+    for (let i = 1; i <= 5; i++) dots.appendChild(el("span", "ws-dot" + (p.box >= i ? " on" : "")));
+    boxRow.append(dots, el("span", "ws-boxlbl", p.box >= 5 ? "Gemeistert" : `Box ${p.box} von 5`));
+    box.appendChild(boxRow);
+    const grid = el("div", "ws-grid");
+    grid.append(wsStat(p.right, "richtig"), wsStat(p.wrong, "falsch"), wsStat(dueLabel(p.due), "fällig"));
+    box.appendChild(grid);
+  }
+
+  const close = el("button", "btn secondary", "Schließen");
+  close.addEventListener("click", closeWordSheet);
+  box.appendChild(close);
+
+  $("wordSheet").hidden = false;
+  replayAnim($("wordSheet"));
+}
+$("wordSheet").addEventListener("click", (e) => { if (e.target === $("wordSheet")) closeWordSheet(); });
 
 // --- View: Markiert & Fehler ---
 function renderFehler() {
@@ -1480,7 +1698,8 @@ function renderFehler() {
   box.innerHTML = "";
   const keys = [...new Set([...marked, ...errors])];
   if (!keys.length) {
-    box.appendChild(el("div", "empty", "Noch nichts markiert. Tippe beim Üben auf den Stern ☆ oder mach einen Fehler – dann taucht die Vokabel hier auf."));
+    box.appendChild(emptyState("star", "Noch nichts markiert",
+      "Tippe beim Üben auf den Stern oder mach einen Fehler — dann taucht die Vokabel hier auf."));
     return;
   }
   // Primäre Aktion: gleiche Behandlung wie die Home-CTA, damit sie klar dominiert.
@@ -1575,6 +1794,7 @@ function renderSettings() {
   box.appendChild(toggleRow("Dunkelmodus", theme === "dark", (on) => {
     theme = on ? "dark" : "light";
     localStorage.setItem("theme", theme);
+    themeFade();
     applyTheme();
   }));
 
@@ -1587,6 +1807,7 @@ function renderSettings() {
     b.addEventListener("click", () => {
       accent = a;
       localStorage.setItem("accent", a);
+      themeFade();   // beim Akzentwechsel ist der harte Farbsprung noch auffälliger
       applyAccent();
       sw.querySelectorAll(".swatch").forEach((x) => x.classList.toggle("on", x === b));
     });

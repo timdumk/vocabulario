@@ -23,6 +23,9 @@
     <!-- ============ LISTE (alle Vokabeln) ============ -->
     <section class="view" id="view-liste" hidden>
       <h2 class="view-title">Alle Vokabeln</h2>
+      <!-- Themen-Filter: waagerecht scrollbar, filtert die Liste (eigener
+           Zustand `listCat` — NICHT der Übungsfilter `selectedCat`). -->
+      <div class="cat-chips" id="listCats"></div>
       <input id="listeSearch" class="search" type="search" placeholder="Suchen… (Spanisch oder Deutsch)" autocomplete="off">
       <details class="addbox">
         <summary>+ Eigene Vokabel</summary>
@@ -71,11 +74,15 @@
   <!-- ============ ÜBUNG: eigener Vollbild-Flow (ohne Tab-Bar) ============ -->
   <div class="practice" id="practice" hidden>
     <div class="practice-top">
-      <button id="practiceExit" class="icon-btn" aria-label="Übung beenden">
-        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-      </button>
-      <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
-      <span class="progress-count" id="progressCount"></span>
+      <div class="practice-bar">
+        <button id="practiceExit" class="icon-btn" aria-label="Übung beenden">
+          <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+        <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-count" id="progressCount"></span>
+      </div>
+      <!-- Womit übe ich gerade? Im Fokus-Modus trägt das #focusBanner den Kontext. -->
+      <p class="practice-ctx" id="practiceCtx"></p>
     </div>
 
     <div class="practice-body" id="practiceBody">
@@ -144,6 +151,11 @@
       <button id="sheetStart" class="btn">Los geht’s</button>
       <button id="sheetCancel" class="btn secondary">Abbrechen</button>
     </div>
+  </div>
+
+  <!-- ============ WORT-DETAIL: reine Anzeige (Inhalt kommt aus app.js) ============ -->
+  <div class="sheet-back" id="wordSheet" hidden>
+    <div class="sheet" id="wordSheetBody"></div>
   </div>
 
   <!-- ============ Bestätigung: Übung verlassen ============ -->
