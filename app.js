@@ -24,6 +24,7 @@ let srs = localStorage.getItem("srs") !== "off";                     // Spaced R
 let autoSpeak = localStorage.getItem("autoSpeak") === "on";          // spanisches Wort autom. vorlesen
 let practice = localStorage.getItem("practice") || "mc";             // mc | write | cards
 let sfxOn = localStorage.getItem("sfx") === "on";                    // Soundeffekte (Standard aus)
+let hapticsOn = localStorage.getItem("haptics") !== "off";           // Haptik (Standard an)
 let accent = localStorage.getItem("accent") || "bordeaux";           // bordeaux | oceano | bosque | indigo
 let fontSize = localStorage.getItem("fontSize") || "m";              // s | m | l
 
@@ -168,6 +169,30 @@ function applyAccent() {
 }
 function applyFontSize() {
   FONT_SIZES.forEach((f) => document.documentElement.classList.toggle("fs-" + f, f === fontSize && f !== "m"));
+}
+
+// ============================================================
+//  Haptisches Feedback
+//  Zwei Wege, weil es keinen gibt, der überall funktioniert:
+//   1. navigator.vibrate() — Android und Desktop-Chrome. iOS Safari kennt es NICHT.
+//   2. iOS ab 17.4: <input type="checkbox" switch> ist ein nativer Schalter,
+//      dessen Umlegen ein System-Haptik auslöst. Wir legen einen unsichtbaren
+//      Schalter um. Das ist ein Umweg, kein API — Apple kann ihn jederzeit
+//      schließen, und bei synthetischen Klicks ist er nicht garantiert.
+//  Stärke lässt sich auf diesem Weg nicht steuern: iOS gibt immer dasselbe
+//  leichte Tippen, deshalb sind die Muster unten nur für Weg 1 relevant.
+// ============================================================
+const VIBRATION = { ok: [12], bad: [22, 45, 22], done: [10, 35, 10, 35, 26], milestone: [14, 40, 22] };
+const canVibrate = () => typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+
+function haptic(type) {
+  if (!hapticsOn) return;
+  try {
+    if (canVibrate()) { navigator.vibrate(VIBRATION[type] || VIBRATION.ok); return; }
+    // iOS-Umweg: nativen Schalter umlegen. Muss aus einem echten Tap heraus laufen.
+    const sw = $("hapticSwitch");
+    if (sw) sw.click();   // click() legt den Schalter um — genau das erzeugt das Tippen
+  } catch (e) { /* Haptik nicht verfügbar — stillschweigend überspringen */ }
 }
 
 // --- Soundeffekte: kurze Töne per WebAudio, keine Audiodateien ---
@@ -743,6 +768,7 @@ function score(ok) {
     if (currentKey) { errors.add(currentKey); saveSets(); }
   }
   sfx(ok ? "ok" : "bad");
+  haptic(ok ? "ok" : "bad");
   recordAnswer(currentKey, ok);
   const goalJustReached = touchDay();
   saveStats();
@@ -1003,6 +1029,7 @@ function showSummary() {
   $("progressCount").textContent = `${s.total} / ${s.total}`;
 
   sfx("done");
+  haptic("done");
   const box = $("summary");
   box.hidden = false;
   box.innerHTML = "";
@@ -1038,6 +1065,7 @@ function summaryStat(val, lbl) {
 // --- Meilensteine: kurzer Badge-Pop, kein Vollbild-Konfetti ---
 let milestoneTimer = null;
 function showMilestone(text) {
+  haptic("milestone");
   const m = $("milestone");
   m.innerHTML = "";
   m.insertAdjacentHTML("beforeend", ICONS.check);
@@ -1539,6 +1567,14 @@ function renderSettings() {
     localStorage.setItem("sfx", on ? "on" : "off");
     if (on) sfx("ok");   // kurze Hörprobe, entsperrt zugleich den Audio-Context
   }));
+  box.appendChild(toggleRow("Vibration", hapticsOn, (on) => {
+    hapticsOn = on;
+    localStorage.setItem("haptics", on ? "on" : "off");
+    if (on) haptic("ok");   // kurze Probe direkt aus dem Tap heraus
+  }));
+  box.appendChild(el("p", "data-note", canVibrate()
+    ? "Kurzes Vibrieren bei richtig und falsch."
+    : "Kurzes Vibrieren bei richtig und falsch. Auf dem iPhone nutzt die App einen Umweg über einen versteckten Systemschalter — ob das Tippen ankommt, siehst du nur auf dem Gerät selbst."));
 
   // --- Sicherung ---
   box.appendChild(el("div", "stat-h", "Daten"));

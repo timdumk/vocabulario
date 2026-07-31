@@ -37,6 +37,11 @@ Stack: Vanilla HTML/CSS/JS, keine Frameworks.
   für Klausurzitate ungeeignet. Erscheinen erst nach dem Antworten und speisen den Lückentext.
 - **Spaced Repetition:** Leitner-Boxen je Wort (`progress`-Store), fällige/schwache Wörter bevorzugt. Abschaltbar.
 - **Audio:** 🔊 vorlesen (SpeechSynthesis `es-ES`) + Auto-Vorlesen · **Soundeffekte** per WebAudio (Standard aus).
+- **Vibration** (Standard an, abschaltbar unter *Mehr → Ton*): `navigator.vibrate()` auf Android/Desktop.
+  **iOS Safari kennt navigator.vibrate() nicht** — dort legt die App einen unsichtbaren
+  `<input type="checkbox" switch>` um (nativer Schalter ab iOS 17.4, sein Umlegen erzeugt ein
+  System-Tippen). Das ist ein Umweg, kein API: Apple kann ihn schließen, und bei synthetischen
+  Klicks ist er nicht garantiert. Stärke lässt sich auf diesem Weg nicht steuern.
 - **Meilensteine:** dezenter Badge-Pop bei Tagesziel, 7/30/100 Tage Streak, 50/100/200 geübten Vokabeln. Je einmal.
 - **Statistik** (in „Mehr"): geübt / gemeistert / Trefferquote + dicke Themen-Balken mit Prozent im Balken.
 - **Personalisierung:** 4 **Akzentpaletten** (Bordeaux · Océano · Bosque · Índigo), **Schriftgröße** (klein/mittel/groß),

@@ -939,6 +939,14 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 }
 .setting-row .val { color: var(--text-2); font-weight: var(--fw-medium); }
 
+/* Haptik-Ausloeser: muss im Layout existieren (sonst loest iOS nichts aus),
+   darf aber nicht sichtbar oder antippbar sein. */
+.haptic-trigger {
+  position: fixed; bottom: 0; left: 0;
+  width: 1px; height: 1px; overflow: hidden;
+  opacity: 0; pointer-events: none; z-index: -1;
+}
+
 /* Sicherung */
 .data-note {
   font-size: var(--fs-caption); color: var(--text-2);

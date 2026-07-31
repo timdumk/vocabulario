@@ -158,6 +158,15 @@
     </div>
   </div>
 
+  <!-- ============ Haptik-Ausloeser (iOS) ============
+       iOS Safari kennt navigator.vibrate() nicht. Seit iOS 17.4 rendert es aber
+       <input type="checkbox" switch> als nativen Schalter, dessen Umlegen ein
+       System-Haptik ausloest. Der Schalter hier ist unsichtbar und dient nur
+       diesem Zweck. Auf allen anderen Plattformen bleibt er ungenutzt. -->
+  <label class="haptic-trigger" id="hapticLabel" aria-hidden="true">
+    <input type="checkbox" switch id="hapticSwitch" tabindex="-1">
+  </label>
+
   <!-- ============ Meilenstein-Badge ============ -->
   <div class="milestone" id="milestone" hidden></div>
 
