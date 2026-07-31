@@ -33,7 +33,7 @@ Stack: Vanilla HTML/CSS/JS, keine Frameworks.
 - **Nachdrill:** Falsch beantwortete Fragen kommen am Ende derselben Runde erneut — ohne die Trefferquote zu verändern.
 - **Sicherung:** *Mehr → Daten* exportiert alles als JSON (Zwischenablage **oder** Datei) und spielt es zurück.
   Auf dem iPhone ist der Zwischenablage-Weg der verlässliche; Datei-Downloads sind in einer Standalone-PWA unzuverlässig.
-- **Beispielsätze:** `sentences.js`, 160 Stück. **Selbst geschrieben auf A2-Niveau, NICHT aus dem Kursbuch** —
+- **Beispielsätze:** `sentences.js`, **285 Stück** (285 von 853 Einträgen ≈ 33%; jedes Thema abgedeckt, Básico/Verbos/Personas/Tiempo/Lugares/Ubicación vollständig). **Selbst geschrieben auf A2-Niveau, NICHT aus dem Kursbuch** —
   für Klausurzitate ungeeignet. Erscheinen erst nach dem Antworten und speisen den Lückentext.
 - **Spaced Repetition:** Leitner-Boxen je Wort (`progress`-Store), fällige/schwache Wörter bevorzugt. Abschaltbar.
 - **Audio:** 🔊 vorlesen (SpeechSynthesis `es-ES`) + Auto-Vorlesen · **Soundeffekte** per WebAudio (Standard aus).

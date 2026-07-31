@@ -548,8 +548,11 @@ function blankOut(satz, ziel) {
   const roh = kern.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const teile = roh.split(/\s+/).map((wort) =>
     wort.split("").map((c) => (akz[c] ? "[" + akz[c] + "]" : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join(""));
-  const muster = new RegExp(teile.join("\\s+") + "\\w*", "i");
-  return muster.test(satz) ? satz.replace(muster, "_____") : satz;
+  // Wortgrenze davor, sonst trifft z. B. „hora" die Mitte von „ahora".
+  // Kein \b, weil das Muster mit Akzent-Zeichenklassen beginnt; stattdessen
+  // Satzanfang oder ein Zeichen, das kein Buchstabe ist.
+  const muster = new RegExp("(^|[^A-Za-zÀ-ÿ])(" + teile.join("\\s+") + "\\w*)", "i");
+  return muster.test(satz) ? satz.replace(muster, "$1_____") : satz;
 }
 
 // Uebungsart „Luecke": Satz mit fehlendem Wort, Antwort wird getippt.
