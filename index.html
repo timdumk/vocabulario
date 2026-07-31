@@ -119,9 +119,10 @@
       </div>
 
       <div class="modes submodes" id="practiceModes">
-        <button class="mode active" data-practice="mc">Auswahl</button>
+        <button class="mode active" data-practice="mc">Wahl</button>
         <button class="mode" data-practice="write">Schreiben</button>
         <button class="mode" data-practice="cards">Karten</button>
+        <button class="mode" data-practice="gap">Lücke</button>
       </div>
 
       <div class="controls" id="vocabControls">
@@ -148,10 +149,10 @@
   <!-- ============ Bestätigung: Übung verlassen ============ -->
   <div class="dialog-back" id="confirmExit" hidden>
     <div class="dialog">
-      <p class="dialog-title">Übung beenden?</p>
-      <p class="dialog-text">Der Fortschritt dieser Runde wird nicht gewertet.</p>
+      <p class="dialog-title" id="confirmTitle">Übung beenden?</p>
+      <p class="dialog-text" id="confirmText">Der Fortschritt dieser Runde wird nicht gewertet.</p>
       <div class="dialog-actions">
-        <button class="btn secondary" id="confirmNo">Weiter üben</button>
+        <button class="btn secondary" id="confirmNo">Abbrechen</button>
         <button class="btn" id="confirmYes">Beenden</button>
       </div>
     </div>
@@ -161,6 +162,7 @@
   <div class="milestone" id="milestone" hidden></div>
 
   <script src="vocab.js"></script>
+  <script src="sentences.js"></script>
   <script src="verbs.js"></script>
   <script src="app.js"></script>
 </body>

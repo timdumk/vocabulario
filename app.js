@@ -35,7 +35,7 @@ let focusSet = new Set();
 // Tagesfortschritt: Tagesziel + Tages-Streak (Tage in Folge mit erreichtem Ziel).
 // Unabhängig von stats.streak — das zählt richtige Antworten in Folge.
 let daily = Object.assign(
-  { date: "", count: 0, goal: 20, streak: 0, lastGoalDate: "", best: 0 },
+  { date: "", count: 0, goal: 20, streak: 0, lastGoalDate: "", best: 0, done: [] },
   JSON.parse(localStorage.getItem("daily") || "{}")
 );
 
@@ -91,6 +91,39 @@ function applyTheme() {
   if (meta) meta.content = theme === "dark" ? "#16121a" : "#f4ecd9";
 }
 function vocabByKey(k) { return WORDS.find((v) => v.es === k); }
+
+// ============================================================
+//  Lernschlüssel
+//  Vokabeln nutzen ihr spanisches Wort als Schlüssel. Verben brauchten einen
+//  eigenen — bis hierher lief Konjugation ganz ohne Fortschritt, weil
+//  currentKey null blieb und recordAnswer() dann sofort aussteigt.
+//    verb:<infinitiv>:<zeit>   → 18 Verben × 4 Zeiten = 72 Einheiten
+//    special:<infinitiv>       → gustar, haber
+//  Verb×Zeit ist die Einheit, die man tatsächlich lernt; der Tabellen-Modus
+//  prüft ohnehin alle sechs Personen einer Zeitform auf einmal.
+// ============================================================
+const verbKey = (inf, tense) => `verb:${inf}:${tense}`;
+const specialKey = (inf) => `special:${inf}`;
+const isVerbKey = (k) => typeof k === "string" && (k.startsWith("verb:") || k.startsWith("special:"));
+
+// Alle lernbaren Konjugations-Einheiten — Nenner für die Statistik.
+function allVerbKeys() {
+  const out = VERBS.flatMap((v) => TENSES.map((t) => verbKey(v.inf, t)));
+  return out.concat(SPECIALS.map((s) => specialKey(s.inf)));
+}
+
+// Löst jeden Schlüssel in etwas Anzeigbares auf. Ohne das verschwinden
+// Verbfehler still, weil renderFehler() Unbekanntes per .filter(Boolean) wegwirft.
+function itemByKey(key) {
+  if (!isVerbKey(key)) return vocabByKey(key);
+  const [art, inf, tense] = key.split(":");
+  if (art === "special") {
+    const s = SPECIALS.find((x) => x.inf === inf);
+    return s ? { es: s.inf, de: `${s.de} · Sonderfall`, cat: "Konjugation", isVerb: true } : null;
+  }
+  const v = VERBS.find((x) => x.inf === inf);
+  return v ? { es: v.inf, de: `${v.de} · ${tense}`, cat: "Konjugation", isVerb: true } : null;
+}
 
 // Systemeinstellung „Bewegung reduzieren" respektieren: dann Endwerte direkt setzen.
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -164,6 +197,42 @@ function sfx(type) {
   } catch (e) { /* Audio nicht verfügbar — stillschweigend überspringen */ }
 }
 
+// ============================================================
+//  Sicherung: Export / Import
+//  Der gesamte Fortschritt liegt nur im localStorage EINES Geräts. Ohne
+//  Backend ist das hier die einzige Absicherung gegen Gerätewechsel oder
+//  gelöschte Website-Daten.
+// ============================================================
+const DATA_KEYS = [
+  "progress", "marked", "errors", "customVocab", "stats", "daily", "milestones",
+  "len", "sfx", "accent", "fontSize", "cat", "theme", "srs", "autoSpeak",
+  "practice", "mode", "dir", "tense", "type",
+];
+
+function buildBackup() {
+  const daten = {};
+  DATA_KEYS.forEach((k) => {
+    const v = localStorage.getItem(k);
+    if (v !== null) daten[k] = v;   // roh als String — genau so wie gespeichert
+  });
+  return JSON.stringify({ app: "vocabulario", version: 1, datum: new Date().toISOString(), daten }, null, 1);
+}
+
+// Gibt eine Fehlermeldung zurück oder null bei Erfolg. Schreibt erst,
+// wenn die Struktur geprüft ist — kaputtes JSON darf den Bestand nicht zerstören.
+function applyBackup(text) {
+  let obj;
+  try { obj = JSON.parse(text); }
+  catch (e) { return "Das ist kein gültiges JSON."; }
+  if (!obj || obj.app !== "vocabulario" || typeof obj.daten !== "object" || !obj.daten) {
+    return "Die Datei stammt nicht aus Vocabulario.";
+  }
+  const bekannt = Object.keys(obj.daten).filter((k) => DATA_KEYS.includes(k));
+  if (!bekannt.length) return "Die Sicherung enthält keine bekannten Daten.";
+  bekannt.forEach((k) => localStorage.setItem(k, obj.daten[k]));
+  return null;
+}
+
 // --- Tagesfortschritt ---
 // Lokales Datum als YYYY-MM-DD (nicht UTC — sonst springt der Tag abends um).
 function dayKey(d = new Date()) {
@@ -190,6 +259,9 @@ function touchDay() {
     daily.streak++;
     daily.lastGoalDate = daily.date;
     if (daily.streak > daily.best) daily.best = daily.streak;
+    // Historie fuer den Wochen-Kalender, auf 60 Tage begrenzt.
+    if (!daily.done.includes(daily.date)) daily.done.push(daily.date);
+    if (daily.done.length > 60) daily.done = daily.done.slice(-60);
     reached = true;
   }
   save("daily", daily);
@@ -208,15 +280,27 @@ function recordAnswer(key, ok) {
   save("progress", progress);
 }
 // SRS-Auswahl: fällige Wörter zuerst, niedrige Boxen (schwache Vokabeln) stärker gewichtet.
-function pickWord(words) {
-  if (!srs) return rand(words);
+function pickWord(words) { return pickByKey(words, (w) => w.es); }
+
+// Faellige zuerst, niedrige Boxen (schwache Eintraege) staerker gewichtet.
+// Arbeitet ueber eine Schluesselfunktion, damit Vokabeln UND Konjugation
+// dieselbe Wiederholungslogik nutzen.
+function pickByKey(liste, keyOf) {
+  if (!liste.length) return null;
+  if (!srs) return rand(liste);
   const now = Date.now();
-  let pool = words.filter((w) => (progress[w.es]?.due || 0) <= now);
-  if (!pool.length) pool = words;
-  const weights = pool.map((w) => 6 - (progress[w.es]?.box || 0));
+  let pool = liste.filter((x) => (progress[keyOf(x)]?.due || 0) <= now);
+  if (!pool.length) pool = liste;
+  const weights = pool.map((x) => 6 - (progress[keyOf(x)]?.box || 0));
   let r = Math.random() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) return pool[i]; }
   return pool[pool.length - 1];
+}
+
+// Waehlt eine Verb-x-Zeit-Kombination nach denselben Regeln.
+function pickVerbSlot(verbs, tenses) {
+  const slots = verbs.flatMap((v) => tenses.map((t) => ({ verb: v, tense: t })));
+  return pickByKey(slots, (s) => verbKey(s.verb.inf, s.tense));
 }
 
 // --- Vorlesen (gratis über Browser-Sprachausgabe) ---
@@ -412,6 +496,71 @@ function renderWrite() {
 }
 
 // Übungsart „Karten" (umdrehen + Selbstbewertung)
+// ============================================================
+//  Beispielsätze und Lückentext
+// ============================================================
+const sentenceFor = (key) => (typeof SENTENCES !== "undefined" ? SENTENCES[key] : null);
+
+// Alle Eintraege des aktuellen Themas, zu denen es einen Satz gibt.
+function gapPool() {
+  if (mode === "verbs") {
+    const pool = (typeFilter === "Alle" || typeFilter === "special")
+      ? VERBS : VERBS.filter((v) => v.type === typeFilter);
+    const zeiten = tenseFilter === "Alle" ? TENSES : [tenseFilter];
+    return pool.flatMap((v) => zeiten.map((t) => verbKey(v.inf, t))).filter(sentenceFor);
+  }
+  return vocabPool().map((w) => w.es).filter(sentenceFor);
+}
+
+// Ersetzt das Zielwort im Satz durch eine Luecke. Artikel und Akzente werden
+// ignoriert, damit auch gebeugte Formen im Satz getroffen werden.
+function blankOut(satz, ziel) {
+  const kern = ziel.replace(/^(el |la |los |las )/, "").split("/")[0].trim();
+  const akz = { a: "aá", e: "eé", i: "ií", o: "oó", u: "uú" };
+  const roh = kern.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const teile = roh.split(/\s+/).map((wort) =>
+    wort.split("").map((c) => (akz[c] ? "[" + akz[c] + "]" : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join(""));
+  const muster = new RegExp(teile.join("\\s+") + "\\w*", "i");
+  return muster.test(satz) ? satz.replace(muster, "_____") : satz;
+}
+
+// Uebungsart „Luecke": Satz mit fehlendem Wort, Antwort wird getippt.
+function gapQuestion() {
+  const keys = gapPool();
+  if (!keys.length) { setHeader("Keine Sätze vorhanden", "—", false, null); showGapHint(); return; }
+  const key = pickByKey(keys, (k) => k);
+  const eintrag = itemByKey(key);
+  const satz = sentenceFor(key);
+  currentKey = key;
+  currentSpanish = eintrag.es;
+  correctText = eintrag.es;
+  setHeader("Ergänze den Satz", blankOut(satz.es, eintrag.es), false, { sub: satz.de });
+  renderWrite();
+  anchorCard();
+}
+
+// Kein Satz im gewaehlten Thema — Runde nicht leer laufen lassen.
+function showGapHint() {
+  optionsEl.innerHTML = "";
+  optionsEl.appendChild(el("p", "gap-hint",
+    "Zu diesem Thema gibt es noch keine Beispielsätze. Wähle ein anderes Thema oder eine andere Übungsart."));
+  const b = el("button", "next", "Zurück");
+  b.addEventListener("click", closePractice);
+  optionsEl.appendChild(b);
+  nextBtn.hidden = true;
+  anchorCard();
+}
+
+// Beispielsatz NACH dem Antworten zeigen — vorher wuerde er die Loesung verraten.
+function showSentence() {
+  const satz = sentenceFor(currentKey);
+  if (!satz || practice === "gap") return;
+  const box = el("div", "sentence");
+  box.appendChild(el("span", "sentence-es", satz.es));
+  box.appendChild(el("span", "sentence-de", satz.de));
+  feedbackEl.insertAdjacentElement("afterend", box);
+}
+
 function renderCards() {
   const flip = el("button", "next", "Karte umdrehen");
   flip.addEventListener("click", () => {
@@ -447,9 +596,10 @@ function vocabPool() {
   return selectedCat === "Alle" ? WORDS : WORDS.filter((v) => v.cat === selectedCat);
 }
 
-function vocabQuestion() {
+// vorgabe: erzwingt ein bestimmtes Wort (Nachdrill), sonst SRS-Auswahl.
+function vocabQuestion(vorgabe) {
   const words = vocabPool();
-  const current = pickWord(words);
+  const current = vorgabe || pickWord(words);
   currentKey = current.es;
   currentSpanish = current.es;
   const correct = vocabAns(current);
@@ -463,12 +613,13 @@ function vocabQuestion() {
 }
 
 // --- Verben-Frage ---
-function verbQuestion() {
-  currentKey = null;
+function verbQuestion(vorgabe) {
   const pool = typeFilter === "Alle" ? VERBS : VERBS.filter((v) => v.type === typeFilter);
-  const verb = rand(pool);
+  const zeiten = tenseFilter === "Alle" ? TENSES : [tenseFilter];
+  const slot = vorgabe || pickVerbSlot(pool, zeiten);
+  const verb = slot.verb, tense = slot.tense;
+  currentKey = verbKey(verb.inf, tense);
   currentSpanish = verb.inf;
-  const tense = tenseFilter === "Alle" ? rand(TENSES) : tenseFilter;
   const i = Math.floor(Math.random() * PERSONS.length);
   const correct = verbForm(verb, tense, i);
 
@@ -482,9 +633,9 @@ function verbQuestion() {
 }
 
 // --- Sonderfälle (gustar / haber) ---
-function specialQuestion() {
-  currentKey = null;
-  const sp = rand(SPECIALS);
+function specialQuestion(vorgabe) {
+  const sp = vorgabe || pickByKey(SPECIALS, (x) => specialKey(x.inf));
+  currentKey = specialKey(sp.inf);
   currentSpanish = sp.inf;
   const slot = rand(sp.slots);
   const correct = slot.a;
@@ -498,7 +649,9 @@ function specialQuestion() {
 function refreshQuestion() { if (session) newQuestion(); }
 
 function newQuestion() {
-  if (mode === "verbs" && !focusMode) {
+  if (practice === "gap" && !focusMode) { gapQuestion(); return; }
+  if (focusMode) { focusQuestion(); return; }
+  if (mode === "verbs") {
     if (typeFilter === "special") specialQuestion();
     else if (practice === "table") verbTableQuestion();
     else verbQuestion();
@@ -507,14 +660,37 @@ function newQuestion() {
   }
 }
 
+// Im Fokus-Modus entscheidet der Schluessel ueber die Fragenart — dadurch
+// koennen Vokabeln und Konjugation in derselben Runde drankommen.
+function focusQuestion() {
+  const keys = [...focusSet].filter((k) => itemByKey(k));
+  if (!keys.length) { exitFocus(); vocabQuestion(); return; }
+  const key = pickByKey(keys, (k) => k);
+  if (!isVerbKey(key)) { vocabQuestion(); return; }
+  const [art, inf, tense] = key.split(":");
+  if (art === "special") {
+    const sp = SPECIALS.find((x) => x.inf === inf);
+    if (sp) { specialQuestion(sp); return; }
+  } else {
+    const v = VERBS.find((x) => x.inf === inf);
+    if (v) {
+      if (practice === "table") verbTableQuestion({ verb: v, tense });
+      else verbQuestion({ verb: v, tense });
+      return;
+    }
+  }
+  vocabQuestion();
+}
+
 // --- Verben-Tabelle: alle Personen konjugieren (Zeitform vorgegeben) ---
-function verbTableQuestion() {
-  currentKey = null;
+function verbTableQuestion(vorgabe) {
   correctText = null; // Tabelle hat keine einzelne „richtige Antwort" (Feld-Feedback stattdessen)
   const pool = (typeFilter === "Alle" || typeFilter === "special") ? VERBS : VERBS.filter((v) => v.type === typeFilter);
-  const verb = rand(pool);
+  const zeiten = tenseFilter === "Alle" ? TENSES : [tenseFilter];
+  const slot = vorgabe || pickVerbSlot(pool, zeiten);
+  const verb = slot.verb, tense = slot.tense;
+  currentKey = verbKey(verb.inf, tense);
   currentSpanish = verb.inf;
-  const tense = tenseFilter === "Alle" ? rand(TENSES) : tenseFilter;
   setHeader("Konjugiere alle Personen", verb.inf, false, { sub: verb.de, badges: [tense] });
 
   const form = el("form", "conj-table");
@@ -573,13 +749,20 @@ function score(ok) {
   updateStreakBadge();
 
   if (session) {
-    session.answered++;
-    if (ok) session.right++;
+    // Nachdrill zaehlt NICHT in die Wertung — sonst verwaessert er die Trefferquote.
+    if (!inRetry()) {
+      session.answered++;
+      if (ok) session.right++;
+      if (!ok && currentKey && !session.retry.includes(currentKey)) session.retry.push(currentKey);
+    } else {
+      session.retryDone++;
+    }
     updateProgress();
-    const last = !session.endless && session.answered >= session.total;
+    const last = !session.endless && session.answered >= session.total && !session.retry.length && !inRetry();
     nextBtn.textContent = last ? "Ergebnis ansehen" : "Weiter →";
   }
   checkMilestones(goalJustReached);
+  showSentence();
   nextBtn.hidden = false;
 }
 
@@ -597,7 +780,7 @@ markBtn.addEventListener("click", () => {
 // --- Fokus-Üben (markierte + Fehler) ---
 // Übt gezielt eine feste Wortliste. vocabPool() respektiert focusSet bereits.
 function startFocusWith(keys, label) {
-  keys = [...new Set(keys)].filter(vocabByKey);
+  keys = [...new Set(keys)].filter(itemByKey);
   if (!keys.length) return;
   focusSet = new Set(keys);
   focusMode = true;
@@ -702,7 +885,7 @@ document.querySelectorAll("#lengthModes .mode").forEach((b) => {
 
 // --- Runde starten / beenden ---
 function startSession() {
-  session = { total: sessionLen, answered: 0, right: 0, endless: sessionLen === 0 };
+  session = { total: sessionLen, answered: 0, right: 0, endless: sessionLen === 0, retry: [], retryDone: 0 };
   $("practice").hidden = false;
   $("summary").hidden = true;
   $("practiceBody").hidden = false;
@@ -722,14 +905,29 @@ function closePractice() {
 // Vor dem Verlassen nachfragen, sobald die Runde wirklich begonnen hat.
 $("practiceExit").addEventListener("click", () => {
   if (session && !session.endless && session.answered >= 2 && session.answered < session.total) {
-    $("confirmExit").hidden = false;
-    replayAnim($("confirmExit"));
+    askConfirm("Übung beenden?", "Der Fortschritt dieser Runde wird nicht gewertet.",
+      "Weiter üben", "Beenden", closePractice);
   } else {
     closePractice();
   }
 });
-$("confirmNo").addEventListener("click", () => { $("confirmExit").hidden = true; });
-$("confirmYes").addEventListener("click", () => { $("confirmExit").hidden = true; closePractice(); });
+// Ein Dialog für alle Rückfragen — Text und Aktion werden beim Öffnen gesetzt.
+let confirmCb = null;
+function askConfirm(titel, text, neinLabel, jaLabel, beiJa) {
+  $("confirmTitle").textContent = titel;
+  $("confirmText").textContent = text;
+  $("confirmNo").textContent = neinLabel;
+  $("confirmYes").textContent = jaLabel;
+  confirmCb = beiJa;
+  $("confirmExit").hidden = false;
+  replayAnim($("confirmExit"));
+}
+$("confirmNo").addEventListener("click", () => { $("confirmExit").hidden = true; confirmCb = null; });
+$("confirmYes").addEventListener("click", () => {
+  $("confirmExit").hidden = true;
+  const cb = confirmCb; confirmCb = null;
+  if (cb) cb();
+});
 
 // --- Fortschrittsanzeige oben ---
 function updateProgress() {
@@ -738,6 +936,11 @@ function updateProgress() {
   if (session.endless) {
     bar.hidden = true;
     cnt.textContent = session.answered ? `${session.answered} geübt` : "Endlos";
+  } else if (inRetry()) {
+    bar.hidden = false;
+    fill.style.width = "100%";
+    const gesamt = session.retryDone + session.retry.length + 1;
+    cnt.textContent = `Wdh. ${Math.min(session.retryDone + 1, gesamt)} / ${gesamt}`;
   } else {
     bar.hidden = false;
     const done = Math.min(session.answered, session.total);
@@ -747,10 +950,45 @@ function updateProgress() {
 }
 
 // Nächste Frage — oder Rundenende.
+// Regulaere Fragen sind durch, aber es warten noch falsch beantwortete.
+function inRetry() {
+  return !!session && !session.endless && session.answered >= session.total;
+}
+
 function advance() {
-  if (session && !session.endless && session.answered >= session.total) { showSummary(); return; }
+  if (session && !session.endless && session.answered >= session.total) {
+    if (session.retry.length) { retryQuestion(); updateProgress(); return; }
+    showSummary(); return;
+  }
   newQuestion();
   updateProgress();
+}
+
+// Stellt die naechste falsch beantwortete Frage erneut — jeden Schluessel einmal.
+function retryQuestion() {
+  const key = session.retry.shift();
+  const w = itemByKey(key);
+  if (!w) { advance(); return; }
+  if (isVerbKey(key)) {
+    const [art, inf, tense] = key.split(":");
+    if (art === "special") {
+      const sp = SPECIALS.find((x) => x.inf === inf);
+      if (sp) specialQuestion(sp); else { advance(); return; }
+    } else {
+      const v = VERBS.find((x) => x.inf === inf);
+      if (!v) { advance(); return; }
+      if (practice === "table") verbTableQuestion({ verb: v, tense });
+      else verbQuestion({ verb: v, tense });
+    }
+  } else {
+    vocabQuestion(w);
+  }
+  markRetry();
+}
+
+// Dezenter Hinweis auf der Karte, dass es eine Wiederholung ist.
+function markRetry() {
+  promptLabel.textContent = "Wiederholung · " + promptLabel.textContent;
 }
 
 // --- Zusammenfassung nach Rundenende ---
@@ -919,7 +1157,7 @@ function ctaSubLabel() {
 function dueKeys() {
   const now = Date.now();
   return Object.entries(progress)
-    .filter(([key, p]) => p.due <= now && vocabByKey(key))
+    .filter(([key, p]) => p.due <= now && itemByKey(key))
     .map(([key]) => key);
 }
 
@@ -958,6 +1196,26 @@ function goalRing(pct) {
   return wrap;
 }
 
+// Sieben Punkte Mo–So: erledigt = Tagesziel an dem Tag erreicht.
+// Die Historie beginnt mit dem Einbau — rueckwirkend gibt es keine Daten.
+function weekDots() {
+  const wrap = el("div", "week");
+  const heute = new Date();
+  const montagsOffset = (heute.getDay() + 6) % 7;   // Mo=0 … So=6
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(heute);
+    d.setDate(heute.getDate() - montagsOffset + i);
+    const key = dayKey(d);
+    const punkt = el("span", "week-dot"
+      + (daily.done.includes(key) ? " on" : "")
+      + (key === dayKey() ? " today" : "")
+      + (d > heute ? " future" : ""));
+    punkt.title = key;
+    wrap.appendChild(punkt);
+  }
+  return wrap;
+}
+
 function renderHome() {
   rollDay();
   const box = $("homeContent");
@@ -977,6 +1235,7 @@ function renderHome() {
   sl.innerHTML = ICONS.flame;
   sl.appendChild(el("span", null, daily.streak === 1 ? "Tag in Folge" : "Tage in Folge"));
   streakTile.appendChild(sl);
+  streakTile.appendChild(weekDots());
   grid.appendChild(streakTile);
 
   const pct = daily.goal ? Math.min(1, daily.count / daily.goal) : 0;
@@ -989,6 +1248,10 @@ function renderHome() {
   goalTile.append(ring, el("div", "tile-lbl", "Tagesziel"));
   grid.appendChild(goalTile);
   box.appendChild(grid);
+
+  if (daily.best > 0) {
+    box.appendChild(el("p", "record", `Rekord: ${daily.best} ${daily.best === 1 ? "Tag" : "Tage"} in Folge`));
+  }
 
   const cta = el("button", "cta");
   cta.appendChild(el("span", "cta-main", daily.count ? "Weiter lernen" : "Lernen starten"));
@@ -1003,12 +1266,12 @@ function renderHome() {
     const icon = el("span", "action-icon");
     icon.innerHTML = ICONS.cycle;
     const txt = el("div", "action-txt");
-    txt.appendChild(el("span", "action-main", `${due.length} ${due.length === 1 ? "Wort" : "Wörter"} fällig`));
+    txt.appendChild(el("span", "action-main", `${due.length} ${due.length === 1 ? "Eintrag" : "Einträge"} fällig`));
     txt.appendChild(el("span", "action-sub", "Wiederholung nach Plan"));
     const chev = el("span", "action-chev");
     chev.innerHTML = ICONS.chevron;
     card.append(icon, txt, chev);
-    card.addEventListener("click", () => startFocusWith(due, "fällige Wörter"));
+    card.addEventListener("click", () => startFocusWith(due, "fällige Einträge"));
     box.appendChild(card);
   }
 
@@ -1029,7 +1292,7 @@ function renderHome() {
   }
 
   // Kurzüberblick: die zuletzt falsch beantworteten Vokabeln
-  const recent = [...errors].slice(-3).reverse().map(vocabByKey).filter(Boolean);
+  const recent = [...errors].slice(-3).reverse().map((k) => ({ key: k, w: itemByKey(k) })).filter((x) => x.w);
   if (recent.length) {
     const sec = el("div", "home-sec");
     sec.appendChild(el("span", null, "Zuletzt falsch"));
@@ -1040,7 +1303,7 @@ function renderHome() {
     sec.appendChild(more);
     box.appendChild(sec);
 
-    recent.forEach((w) => {
+    recent.forEach(({ w }) => {
       const row = el("div", "mini-row");
       const dot = el("span", "status-dot bad");
       dot.innerHTML = ICONS.alert;
@@ -1054,7 +1317,9 @@ function renderHome() {
 }
 
 // --- View: Alle Vokabeln ---
+// opts.key: Lernschluessel, falls er vom spanischen Wort abweicht (Verben).
 function vocabRow(w, opts = {}) {
+  const key = opts.key || w.es;
   const row = el("div", "row");
   const txt = el("div", "txt");
   txt.appendChild(el("span", "es", w.es));
@@ -1067,11 +1332,11 @@ function vocabRow(w, opts = {}) {
     row.insertBefore(dot, txt);
   }
   // Der gefüllte Stern zeigt „markiert" bereits an — kein zusätzliches Badge nötig.
-  const star = el("button", "row-star" + (marked.has(w.es) ? " on" : ""));
+  const star = el("button", "row-star" + (marked.has(key) ? " on" : ""));
   star.innerHTML = ICONS.star;
   star.addEventListener("click", () => {
-    const on = !marked.has(w.es);
-    if (on) marked.add(w.es); else marked.delete(w.es);
+    const on = !marked.has(key);
+    if (on) marked.add(key); else marked.delete(key);
     saveSets();
     // Im Fehler-Tab ändert sich die Liste selbst → neu zeichnen.
     if (view === "fehler") { renderFehler(); return; }
@@ -1153,8 +1418,10 @@ function renderFehler() {
   box.appendChild(cta);
 
   box.appendChild(el("div", "group-title", "Vokabeln"));
-  keys.map(vocabByKey).filter(Boolean).forEach((w) => {
-    box.appendChild(vocabRow(w, { status: errors.has(w.es) ? "err" : "mark" }));
+  keys.forEach((key) => {
+    const w = itemByKey(key);
+    if (!w) return;
+    box.appendChild(vocabRow(w, { key, status: errors.has(key) ? "err" : "mark" }));
   });
 }
 
@@ -1192,7 +1459,7 @@ function renderStatsInto(box) {
 
   const grid = el("div", "stat-grid");
   grid.append(
-    statCard(geübt, "geübt", "von " + WORDS.length),
+    statCard(geübt, "geübt", "von " + (WORDS.length + allVerbKeys().length)),
     statCard(gemeistert, "gemeistert", "Box 5"),
     statCard(quote + "%", "Treffer", "gesamt"),
   );
@@ -1205,6 +1472,11 @@ function renderStatsInto(box) {
     const pct = words.length ? Math.round((sumBox / (5 * words.length)) * 100) : 0;
     box.appendChild(catBar(c, pct, i));
   });
+  // Konjugation getrennt: das Vokabelthema „Verbos" enthaelt nur die
+  // Infinitive als Woerter, hier geht es um die Formen.
+  const vk = allVerbKeys();
+  const vSum = vk.reduce((a, k) => a + ((progress[k]?.box) || 0), 0);
+  box.appendChild(catBar("Konjugation", Math.round((vSum / (5 * vk.length)) * 100), allCats.length));
 }
 
 // --- View: Mehr (Statistik + Einstellungen) ---
@@ -1267,6 +1539,72 @@ function renderSettings() {
     localStorage.setItem("sfx", on ? "on" : "off");
     if (on) sfx("ok");   // kurze Hörprobe, entsperrt zugleich den Audio-Context
   }));
+
+  // --- Sicherung ---
+  box.appendChild(el("div", "stat-h", "Daten"));
+  const hinweis = el("p", "data-note",
+    "Dein Fortschritt liegt nur auf diesem Gerät. Sichere ihn regelmäßig — sonst ist er bei einem Gerätewechsel weg.");
+  box.appendChild(hinweis);
+
+  const meldung = el("p", "data-msg");
+  meldung.hidden = true;
+  const sag = (text, gut) => {
+    meldung.textContent = text;
+    meldung.className = "data-msg " + (gut ? "ok" : "bad");
+    meldung.hidden = false;
+  };
+
+  const bKopie = el("button", "btn secondary", "Sicherung in die Zwischenablage");
+  bKopie.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(buildBackup()); sag("Sicherung kopiert. Irgendwo einfügen und aufbewahren.", true); }
+    catch (e) { sag("Kopieren nicht möglich — nutze „Als Datei sichern“.", false); }
+  });
+  box.appendChild(bKopie);
+
+  const bDatei = el("button", "btn secondary", "Als Datei sichern");
+  bDatei.addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([buildBackup()], { type: "application/json" }));
+    a.download = `vocabulario-${dayKey()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    sag("Datei erzeugt. Auf dem iPhone landet sie in „Downloads“.", true);
+  });
+  box.appendChild(bDatei);
+
+  // Einspielen: Textfeld ODER Datei — auf dem iPhone ist Einfügen der sichere Weg.
+  const kasten = el("details", "addbox");
+  kasten.appendChild(el("summary", null, "Sicherung einspielen"));
+  const feld = el("textarea", "add-input restore-input");
+  feld.placeholder = "Gesicherten Text hier einfügen…";
+  feld.rows = 3;
+  const datei = el("input", "add-input");
+  datei.type = "file";
+  datei.accept = "application/json,.json";
+  datei.addEventListener("change", () => {
+    const f = datei.files && datei.files[0];
+    if (!f) return;
+    f.text().then((t) => { feld.value = t; sag("Datei gelesen. Jetzt auf „Einspielen“ tippen.", true); });
+  });
+  const bRein = el("button", "btn", "Einspielen");
+  bRein.addEventListener("click", () => {
+    const text = feld.value.trim();
+    if (!text) { sag("Erst Text einfügen oder Datei wählen.", false); return; }
+    // Erst prüfen, dann fragen, dann schreiben.
+    let vorschau;
+    try { vorschau = JSON.parse(text); } catch (e) { sag("Das ist kein gültiges JSON.", false); return; }
+    if (!vorschau || vorschau.app !== "vocabulario") { sag("Die Sicherung stammt nicht aus Vocabulario.", false); return; }
+    askConfirm("Sicherung einspielen?",
+      `Alle aktuellen Daten werden durch die Sicherung vom ${(vorschau.datum || "").slice(0, 10)} ersetzt.`,
+      "Abbrechen", "Einspielen", () => {
+        const fehler = applyBackup(text);
+        if (fehler) { sag(fehler, false); return; }
+        location.reload();
+      });
+  });
+  kasten.append(feld, datei, bRein);
+  box.appendChild(kasten);
+  box.appendChild(meldung);
 
   box.appendChild(el("div", "stat-h", "Zurücksetzen"));
   const bStats = el("button", "btn secondary", "Statistik & Fortschritt zurücksetzen");

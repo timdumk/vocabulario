@@ -1,12 +1,13 @@
 // Service Worker – hält die App aktuell (network-first) und offline-fähig.
 // network-first: online immer die neueste Version laden + Cache auffrischen;
 // nur wenn offline, wird die gespeicherte Version ausgeliefert.
-const CACHE = "vocabulario-v32";
+const CACHE = "vocabulario-v33";
 const ASSETS = [
   "index.html",
   "style.css",
   "app.js",
   "vocab.js",
+  "sentences.js",
   "verbs.js",
   "manifest.json",
   "icon-180.png",

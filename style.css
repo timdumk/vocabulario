@@ -359,6 +359,22 @@ main {
   display: inline-flex; align-items: center; gap: 5px; text-align: center;
 }
 .streak-lbl svg { width: 19px; height: 19px; fill: var(--mustard); stroke: none; flex: none; }
+
+/* Wochen-Kalender: sieben Punkte Mo–So */
+.week { display: flex; gap: 5px; margin-top: var(--sp-1); }
+.week-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--surface-sunken);
+  border: 1px solid transparent;
+}
+.week-dot.on { background: var(--mustard); }
+.week-dot.today { border-color: var(--wine); }
+.week-dot.future { opacity: .45; }
+
+.record {
+  font-size: var(--fs-caption); font-weight: var(--fw-medium);
+  color: var(--text-3); text-align: center; padding: 0 2px;
+}
 /* Flackert nur bei laufendem Streak (Klasse kommt aus renderHome).
    Ursprung unten, damit es lodert statt zu zappeln. Leichte Drehung + Glimmen
    ueber drop-shadow: auf einem 19px-Icon ist das billig, auf grossen Flaechen
@@ -803,6 +819,19 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
 .feedback.bad { color: var(--bad); }
 .feedback.reveal { color: var(--text); font-size: var(--fs-title); font-weight: var(--fw-strong); }
 
+/* Beispielsatz nach dem Antworten */
+.sentence {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface-1); border-radius: var(--r-sm);
+  padding: var(--sp-3); margin-top: var(--sp-2);
+}
+.sentence-es { font-size: var(--fs-label); font-weight: var(--fw-medium); color: var(--text); }
+.sentence-de { font-size: var(--fs-caption); color: var(--text-2); }
+.gap-hint {
+  font-size: var(--fs-label); color: var(--text-2);
+  text-align: center; line-height: var(--lh-normal); padding: var(--sp-2) 0 var(--sp-3);
+}
+
 /* Schreib-Modus */
 .write { display: flex; flex-direction: column; gap: 10px; }
 .write-input {
@@ -909,6 +938,20 @@ body.in-practice .tabbar, body.in-practice main { display: none; }
   box-shadow: var(--elev-1);
 }
 .setting-row .val { color: var(--text-2); font-weight: var(--fw-medium); }
+
+/* Sicherung */
+.data-note {
+  font-size: var(--fs-caption); color: var(--text-2);
+  padding: 0 2px var(--sp-2); line-height: var(--lh-normal);
+}
+.data-msg {
+  font-size: var(--fs-caption); font-weight: var(--fw-medium);
+  padding: var(--sp-2) 2px 0;
+}
+.data-msg.ok { color: var(--ok); }
+.data-msg.bad { color: var(--bad); }
+.restore-input { font-family: inherit; resize: vertical; min-height: 72px; }
+.addbox .btn + .btn, #settingsContent .btn + .btn { margin-top: 10px; }
 
 /* Statistik */
 .stat-h {
