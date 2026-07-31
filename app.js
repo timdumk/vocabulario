@@ -414,6 +414,9 @@ function setHeader(labelText, wordText, showMark, meta) {
   markBtn.hidden = !showMark;
   if (showMark) { markBtn.innerHTML = ICONS.star; markBtn.classList.toggle("on", marked.has(currentKey)); }
   updateStreakBadge();
+  // Beispielsatz der VORHERIGEN Frage entfernen. Er haengt als Geschwister an
+  // feedbackEl, nicht in optionsEl — ohne das bleibt er stehen und stapelt sich.
+  $("card").querySelectorAll(".sentence").forEach((n) => n.remove());
   // Karte federnd einblenden (Slide + Fade); Animation neu starten erzwingen.
   const card = $("card");
   card.classList.remove("card-in");
@@ -580,6 +583,7 @@ function showGapHint() {
 function showSentence() {
   const satz = sentenceFor(currentKey);
   if (!satz || practice === "gap") return;
+  $("card").querySelectorAll(".sentence").forEach((n) => n.remove());   // nie stapeln
   const box = el("div", "sentence");
   box.appendChild(el("span", "sentence-es", satz.es));
   box.appendChild(el("span", "sentence-de", satz.de));
