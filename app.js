@@ -535,24 +535,57 @@ function gapPool() {
     const pool = (typeFilter === "Alle" || typeFilter === "special")
       ? VERBS : VERBS.filter((v) => v.type === typeFilter);
     const zeiten = tenseFilter === "Alle" ? TENSES : [tenseFilter];
-    return pool.flatMap((v) => zeiten.map((t) => verbKey(v.inf, t))).filter(sentenceFor);
+    return pool.flatMap((v) => zeiten.map((t) => verbKey(v.inf, t))).filter(hasGap);
   }
-  return vocabPool().map((w) => w.es).filter(sentenceFor);
+  return vocabPool().map((w) => w.es).filter(hasGap);
 }
 
-// Ersetzt das Zielwort im Satz durch eine Luecke. Artikel und Akzente werden
-// ignoriert, damit auch gebeugte Formen im Satz getroffen werden.
-function blankOut(satz, ziel) {
+// Zeichenklassen fuer das Suchmuster. Der Zielbegriff wird von Akzenten befreit,
+// im Satz stehen sie aber weiter — ohne diese Zuordnung trifft "ano" kein "año".
+const GAP_ALT = { a: "aáà", e: "eéè", i: "ií", o: "oóò", u: "uúü", n: "nñ", c: "cç" };
+
+function gapPattern(ziel) {
   const kern = ziel.replace(/^(el |la |los |las )/, "").split("/")[0].trim();
-  const akz = { a: "aá", e: "eé", i: "ií", o: "oó", u: "uú" };
   const roh = kern.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const teile = roh.split(/\s+/).map((wort) =>
-    wort.split("").map((c) => (akz[c] ? "[" + akz[c] + "]" : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join(""));
-  // Wortgrenze davor, sonst trifft z. B. „hora" die Mitte von „ahora".
-  // Kein \b, weil das Muster mit Akzent-Zeichenklassen beginnt; stattdessen
-  // Satzanfang oder ein Zeichen, das kein Buchstabe ist.
-  const muster = new RegExp("(^|[^A-Za-zÀ-ÿ])(" + teile.join("\\s+") + "\\w*)", "i");
-  return muster.test(satz) ? satz.replace(muster, "$1_____") : satz;
+    wort.split("").map((c) => (GAP_ALT[c] ? "[" + GAP_ALT[c] + "]"
+      : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join(""));
+  // Wortgrenze davor, sonst trifft z. B. "hora" die Mitte von "ahora".
+  return new RegExp("(^|[^A-Za-zÀ-ÿ])(" + teile.join("\\s+") + "\\w*)", "i");
+}
+
+// Ersetzt das Zielwort im Satz durch eine Luecke.
+function blankOut(satz, ziel) {
+  const m = gapPattern(ziel);
+  return m.test(satz) ? satz.replace(m, "$1_____") : satz;
+}
+
+// Bei Konjugation ist das Zielwort NICHT der Infinitiv, sondern die Form, die
+// tatsaechlich im Satz steht. Sonst entstuende keine Luecke und als Antwort
+// waere der Infinitiv gefragt, obwohl der Satz eine gebeugte Form zeigt.
+function verbFormInSentence(key, satz) {
+  const [art, inf, tense] = key.split(":");
+  if (art === "special") {
+    const sp = SPECIALS.find((x) => x.inf === inf);
+    return sp ? (sp.slots.map((s) => s.a).find((f) => gapPattern(f).test(satz)) || null) : null;
+  }
+  const v = VERBS.find((x) => x.inf === inf);
+  return v ? (PERSONS.map((_, i) => verbForm(v, tense, i)).find((f) => gapPattern(f).test(satz)) || null) : null;
+}
+
+// Welches Wort soll in diesem Satz zur Luecke werden?
+function gapTarget(key) {
+  const satz = sentenceFor(key);
+  const eintrag = itemByKey(key);
+  if (!satz || !eintrag) return null;
+  return isVerbKey(key) ? verbFormInSentence(key, satz.es) : eintrag.es;
+}
+
+// Sicherheitsnetz: nur Eintraege zulassen, bei denen wirklich eine Luecke entsteht.
+function hasGap(key) {
+  const satz = sentenceFor(key);
+  const ziel = gapTarget(key);
+  return !!satz && !!ziel && blankOut(satz.es, ziel) !== satz.es;
 }
 
 // Uebungsart „Luecke": Satz mit fehlendem Wort, Antwort wird getippt.
@@ -562,10 +595,15 @@ function gapQuestion() {
   const key = pickByKey(keys, (k) => k);
   const eintrag = itemByKey(key);
   const satz = sentenceFor(key);
+  const ziel = gapTarget(key);
   currentKey = key;
   currentSpanish = eintrag.es;
-  correctText = eintrag.es;
-  setHeader("Ergänze den Satz", blankOut(satz.es, eintrag.es), false, { sub: satz.de });
+  correctText = ziel;
+  // Zeitform als Badge: die deutsche Uebersetzung allein trennt Indefinido und
+  // Perfecto nicht immer eindeutig.
+  const zeit = isVerbKey(key) && !key.startsWith("special:") ? key.split(":")[2] : null;
+  setHeader("Ergänze den Satz", blankOut(satz.es, ziel), false,
+    { sub: satz.de, badges: zeit ? [zeit] : [] });
   renderWrite();
   anchorCard();
 }
